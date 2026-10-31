@@ -76,24 +76,22 @@ public static class DirectoryComparer
     private static Dictionary<string, SyncFile> Scan(string root, SyncOptions options, CancellationToken cancellationToken)
     {
         var files = new Dictionary<string, SyncFile>(StringComparer.OrdinalIgnoreCase);
-        if (ZipArchiveService.TryParse(root, out var archivePath, out var innerPath))
+        if (ArchiveService.TryParse(root, out var archivePath, out var innerPath))
         {
             var prefix = innerPath.Length == 0 ? string.Empty : innerPath + "/";
-            using var archive = ZipArchiveService.OpenRead(archivePath);
-            foreach (var entry in archive.Entries)
+            using var archive = ArchiveService.OpenRead(archivePath);
+            foreach (var item in archive.Items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (ZipArchiveService.IsDirectoryEntry(entry)
-                    || ZipArchiveService.NormalizeEntryName(entry.FullName) is not { } name
-                    || !name.StartsWith(prefix, StringComparison.Ordinal))
+                if (item.IsDirectory || !item.Name.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     continue;
                 }
 
-                var relative = name[prefix.Length..];
+                var relative = item.Name[prefix.Length..];
                 if (options.IncludeSubdirectories || !relative.Contains('/'))
                 {
-                    files[relative] = new SyncFile(ZipArchiveService.ToVirtualPath(archivePath, name), entry.Length, entry.LastWriteTime.UtcDateTime);
+                    files[relative] = new SyncFile(ArchiveService.ToVirtualPath(archivePath, item.Name), item.Length, item.LastWriteTime.ToUniversalTime());
                 }
             }
 

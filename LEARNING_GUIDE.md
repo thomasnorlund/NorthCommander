@@ -36,7 +36,7 @@ always going "from the active panel to the other one".
 ┌────────────────────────────── NorthCommander.Core (no UI references) ──────────────────────┐
 │ Services/    DirectoryService (async listing), FileSystemOperations, CommandRunner          │
 │ Transfers/   BackgroundTransferQueue, FileTransferTask, Copy/Move operations, conflicts     │
-│ Archives/    ZipArchiveService (virtual folders), Extract/AddToArchive operations           │
+│ Archives/    ArchiveService + ArchiveReader (virtual folders), Extract/AddToArchive ops     │
 │ Viewer/      MappedFileSource, TextPager, HexFormatter                                      │
 │ Rename/      RenameMask (TC tokens), MultiRename                                            │
 │ Sync/        DirectoryComparer                                                              │
@@ -90,11 +90,13 @@ Multi-gigabyte files open instantly because nothing reads the whole file:
   index. Very long lines are broken every 8 KiB so scrolling backwards stays fast.
 - `HexFormatter` renders `Offset | 16 hex bytes | ASCII` rows.
 
-### 2.5 ZIP archives as folders
+### 2.5 Archives as folders
 
-A path that continues past a `.zip` file points inside it (`C:\backup.zip\docs\a.txt`).
-`ZipArchiveService` resolves such paths, so tabs, `..`, F3, F5 and sync work unchanged. Adding
-files rebuilds the archive into a temporary file and swaps it in only on success. Entries with
+A path that continues past an archive file points inside it (`C:\backup.7z\docs\a.txt`).
+`ArchiveService` resolves such paths, so tabs, `..`, F3, F5 and sync work unchanged. `ArchiveReader`
+hides the format: ZIP uses System.IO.Compression; 7z, RAR and TAR use SharpCompress random access;
+compressed TARs and solid RARs are read front to back, once per extraction. Only ZIPs can be written:
+adding files rebuilds the archive into a temporary file and swaps it in only on success. Entries with
 `..` or absolute paths are ignored (zip-slip protection).
 
 ### 2.6 Multi-Rename (Ctrl+M) and Sync (Ctrl+Shift+S)
@@ -205,5 +207,4 @@ and wire up <shortcut>.
 ## 5. Where to go next
 
 - Recycle Bin delete and the full Explorer context menu (Windows-only).
-- More archive formats (7z, RAR) behind the same virtual-path approach.
 - Folder size calculation on F3 / Space, as in Total Commander.

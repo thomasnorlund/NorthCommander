@@ -154,10 +154,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var isTemporary = false;
         if (tab.IsInArchive)
         {
-            // Files inside a ZIP are extracted to a temporary file that the Lister deletes on close.
+            // Files inside an archive are extracted to a temporary file that the Lister deletes on close.
             try
             {
-                path = await ZipArchiveService.ExtractToTempAsync(item.FullPath);
+                path = await ArchiveService.ExtractToTempAsync(item.FullPath);
                 isTemporary = true;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -243,7 +243,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            ZipArchiveService.DeleteTemporaryFile(output);
+            ArchiveService.DeleteTemporaryFile(output);
             tab.ErrorMessage = $"Cannot run '{command}': {ex.Message}";
             return;
         }
@@ -251,7 +251,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         await RefreshTabsShowingAsync([folder]);
         if (new FileInfo(output).Length == 0)
         {
-            ZipArchiveService.DeleteTemporaryFile(output);
+            ArchiveService.DeleteTemporaryFile(output);
             if (exitCode != 0)
             {
                 tab.ErrorMessage = $"'{command}' exited with code {exitCode}.";
@@ -268,7 +268,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
         else if (IsModalOpen)
         {
-            ZipArchiveService.DeleteTemporaryFile(output);
+            ArchiveService.DeleteTemporaryFile(output);
         }
     }
 
@@ -330,12 +330,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>Queues one copy per arrow; existing targets are overwritten (the newer file wins).</summary>
     private string? EnqueueSync(IReadOnlyList<SyncItem> items, string leftRoot, string rightRoot)
     {
-        var leftIsArchive = ZipArchiveService.IsArchivePath(leftRoot);
-        var rightIsArchive = ZipArchiveService.IsArchivePath(rightRoot);
+        var leftIsArchive = ArchiveService.IsArchivePath(leftRoot);
+        var rightIsArchive = ArchiveService.IsArchivePath(rightRoot);
         var copies = items.Where(i => i.Direction is SyncDirection.LeftToRight or SyncDirection.RightToLeft).ToList();
         if (leftIsArchive && rightIsArchive && copies.Count > 0)
         {
-            return "Synchronizing two ZIP archives with each other is not supported yet.";
+            return "Synchronizing two archives with each other is not supported yet.";
+        }
+
+        foreach (var (root, direction) in new[] { (rightRoot, SyncDirection.LeftToRight), (leftRoot, SyncDirection.RightToLeft) })
+        {
+            if (ArchiveService.TryParse(root, out var archive, out _) && !ArchiveService.IsZipFile(archive) && copies.Exists(i => i.Direction == direction))
+            {
+                return $"{Path.GetFileName(archive)} is read-only: files can only be added to ZIP archives.";
+            }
         }
 
         try
@@ -466,7 +474,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
-            var targetInArchive = ZipArchiveService.TryParse(target, out var targetArchive, out _);
+            var targetInArchive = ArchiveService.TryParse(target, out var targetArchive, out _);
             if (panel is { IsInArchive: true } || targetInArchive)
             {
                 return EnqueueArchiveTransfers(panel, type, sources, target, targetInArchive ? targetArchive : null);
@@ -500,18 +508,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>F5 out of a ZIP extracts, F5 into a ZIP packs; both run in the background queue.</summary>
+    /// <summary>F5 out of an archive extracts, F5 into a ZIP packs; both run in the background queue.</summary>
     private string? EnqueueArchiveTransfers(TabViewModel? panel, FileTransferType type, IReadOnlyList<string> sources, string target, string? targetArchive)
     {
         var sourceInArchive = panel is { IsInArchive: true };
         if (sourceInArchive && targetArchive is not null)
         {
-            return "Copying from one ZIP archive into another is not supported yet.";
+            return "Copying from one archive into another is not supported yet.";
         }
 
         if (type == FileTransferType.Move)
         {
-            return "Move is not supported for ZIP archives yet - use Copy (F5).";
+            return "Move is not supported for archives yet - use Copy (F5).";
+        }
+
+        if (targetArchive is not null && !ArchiveService.IsZipFile(targetArchive))
+        {
+            return $"{Path.GetFileName(targetArchive)} is read-only: files can only be added to ZIP archives.";
         }
 
         var targetPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(target.Trim()));
@@ -550,7 +563,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
-        tab.ErrorMessage = $"{action} is not supported inside ZIP archives yet.";
+        tab.ErrorMessage = $"{action} is not supported inside archives yet.";
         return true;
     }
 

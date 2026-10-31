@@ -25,9 +25,9 @@ public sealed class DirectoryService : IDirectoryService
     private static DirectoryListing ReadDirectory(string path, CancellationToken cancellationToken)
     {
         // "C:\data\backup.zip\docs" is a folder inside an archive.
-        if (ZipArchiveService.TryParse(path, out var archivePath, out var innerPath))
+        if (ArchiveService.TryParse(path, out var archivePath, out var innerPath))
         {
-            return ZipArchiveService.ReadListing(archivePath, innerPath, cancellationToken);
+            return ArchiveService.ReadListing(archivePath, innerPath, cancellationToken);
         }
 
         var directory = new DirectoryInfo(Path.GetFullPath(path));

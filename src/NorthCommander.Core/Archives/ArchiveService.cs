@@ -5,13 +5,25 @@ using NorthCommander.Core.Services;
 namespace NorthCommander.Core.Archives;
 
 /// <summary>
-/// Virtual file system for ZIP archives. A path that continues past a <c>.zip</c> file names a folder or file
-/// inside it: <c>/data/backup.zip/docs/a.txt</c> → archive <c>/data/backup.zip</c>, inner path <c>docs/a.txt</c>.
-/// Inner paths always use '/' and never start or end with one.
+/// Virtual file system for archives (ZIP, 7z, RAR, TAR and compressed TARs). A path that continues past an archive file
+/// names a folder or file inside it: <c>/data/backup.7z/docs/a.txt</c> → archive <c>/data/backup.7z</c>, inner path
+/// <c>docs/a.txt</c>. Inner paths always use '/' and never start or end with one. Only ZIP archives can be written to.
 /// </summary>
-public static class ZipArchiveService
+public static class ArchiveService
 {
+    private static readonly string[] CompressedTarExtensions = [".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tbz", ".tar.xz", ".txz"];
+    private static readonly string[] ArchiveExtensions = [".zip", ".7z", ".rar", ".tar", .. CompressedTarExtensions];
+
     public static bool IsZipFile(string path) => string.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True for file names NorthCommander opens like folders.</summary>
+    public static bool IsArchiveFile(string path) => ArchiveExtensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Short type tag for display, e.g. "ZIP", "7Z", "TAR.GZ".</summary>
+    public static string GetArchiveTag(string archivePath) =>
+        ArchiveExtensions.FirstOrDefault(e => archivePath.EndsWith(e, StringComparison.OrdinalIgnoreCase))?.TrimStart('.').ToUpperInvariant() ?? "ARC";
+
+    internal static bool IsCompressedTar(string path) => CompressedTarExtensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Splits a virtual path into the archive file on disk and the inner path ("" for the archive root).</summary>
     public static bool TryParse(string path, out string archivePath, out string innerPath)
@@ -42,7 +54,7 @@ public static class ZipArchiveService
 
             if (File.Exists(current))
             {
-                if (!IsZipFile(current))
+                if (!IsArchiveFile(current))
                 {
                     return false;
                 }
@@ -76,10 +88,17 @@ public static class ZipArchiveService
         long totalFileSize = 0;
         var found = innerPath.Length == 0;
 
-        foreach (var entry in archive.Entries)
+        foreach (var item in archive.Items)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (NormalizeEntryName(entry.FullName) is not { } name || !name.StartsWith(prefix, StringComparison.Ordinal))
+            var name = item.Name;
+            if (name == innerPath && item.IsDirectory)
+            {
+                found = true;
+                continue;
+            }
+
+            if (!name.StartsWith(prefix, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -92,10 +111,10 @@ public static class ZipArchiveService
             }
 
             var slash = rest.IndexOf('/');
-            if (slash >= 0)
+            if (slash >= 0 || item.IsDirectory)
             {
-                var directoryName = rest[..slash];
-                var isExplicit = slash == rest.Length - 1;
+                var directoryName = slash >= 0 ? rest[..slash] : rest;
+                var isExplicit = slash < 0;
                 if (isExplicit || !directories.ContainsKey(directoryName))
                 {
                     directories[directoryName] = new FileSystemEntry(
@@ -103,7 +122,7 @@ public static class ZipArchiveService
                         string.Empty,
                         ToVirtualPath(archivePath, prefix + directoryName),
                         null,
-                        isExplicit ? entry.LastWriteTime.LocalDateTime : archiveTime,
+                        isExplicit ? item.LastWriteTime : archiveTime,
                         FileAttributes.Directory,
                         FileSystemEntryKind.Directory);
                 }
@@ -115,11 +134,11 @@ public static class ZipArchiveService
                     fileName,
                     extension,
                     ToVirtualPath(archivePath, name),
-                    entry.Length,
-                    entry.LastWriteTime.LocalDateTime,
+                    item.Length,
+                    item.LastWriteTime,
                     FileAttributes.Normal,
                     FileSystemEntryKind.File));
-                totalFileSize += entry.Length;
+                totalFileSize += item.Length;
             }
         }
 
@@ -153,33 +172,35 @@ public static class ZipArchiveService
     {
         if (!TryParse(virtualPath, out var archivePath, out var innerPath) || innerPath.Length == 0)
         {
-            throw new FileNotFoundException($"Not a file inside a ZIP archive: {virtualPath}");
+            throw new FileNotFoundException($"Not a file inside an archive: {virtualPath}");
         }
 
         return Task.Run(
             async () =>
             {
                 using var archive = OpenRead(archivePath);
-                var entry = archive.Entries.FirstOrDefault(e => NormalizeEntryName(e.FullName) == innerPath)
-                    ?? throw new FileNotFoundException($"'{innerPath}' not found in {Path.GetFileName(archivePath)}.");
-                var folder = Directory.CreateTempSubdirectory("NorthCommander_").FullName;
-                var target = Path.Combine(folder, Path.GetFileName(innerPath));
-                try
+                foreach (var (item, input) in archive.Read(i => i.Name == innerPath))
                 {
-                    await using (var input = entry.Open())
-                    await using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous))
+                    var folder = Directory.CreateTempSubdirectory("NorthCommander_").FullName;
+                    var target = Path.Combine(folder, Path.GetFileName(innerPath));
+                    try
                     {
-                        await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-                    }
+                        await using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous))
+                        {
+                            await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                        }
 
-                    File.SetLastWriteTime(target, entry.LastWriteTime.LocalDateTime);
-                    return target;
+                        File.SetLastWriteTime(target, item.LastWriteTime);
+                        return target;
+                    }
+                    catch
+                    {
+                        DeleteTemporaryFile(target);
+                        throw;
+                    }
                 }
-                catch
-                {
-                    DeleteTemporaryFile(target);
-                    throw;
-                }
+
+                throw new FileNotFoundException($"'{innerPath}' not found in {Path.GetFileName(archivePath)}.");
             },
             cancellationToken);
     }
@@ -201,8 +222,16 @@ public static class ZipArchiveService
         }
     }
 
-    internal static ZipArchive OpenRead(string archivePath)
+    internal static ArchiveReader OpenRead(string archivePath) => ArchiveReader.Open(archivePath);
+
+    /// <summary>Opens a ZIP archive with System.IO.Compression (for rewriting it).</summary>
+    internal static ZipArchive OpenZip(string archivePath)
     {
+        if (!IsZipFile(archivePath))
+        {
+            throw new IOException($"{Path.GetFileName(archivePath)} is read-only: files can only be added to ZIP archives.");
+        }
+
         try
         {
             return ZipFile.OpenRead(archivePath);
@@ -234,25 +263,20 @@ public static class ZipArchiveService
         return name;
     }
 
-    /// <summary>The entry named <paramref name="innerPath"/> (RelativePath "") or all entries below it.</summary>
-    internal static List<(ZipArchiveEntry Entry, string RelativePath)> SelectEntries(ZipArchive archive, string innerPath)
+    /// <summary>The item named <paramref name="innerPath"/> (RelativePath "") or all items below it.</summary>
+    internal static List<(ArchiveItem Item, string RelativePath)> SelectEntries(ArchiveReader archive, string innerPath)
     {
         var prefix = innerPath + "/";
-        var result = new List<(ZipArchiveEntry, string)>();
-        foreach (var entry in archive.Entries)
+        var result = new List<(ArchiveItem, string)>();
+        foreach (var item in archive.Items)
         {
-            if (NormalizeEntryName(entry.FullName) is not { } name)
+            if (item.Name == innerPath)
             {
-                continue;
+                result.Add((item, string.Empty));
             }
-
-            if (name == innerPath)
+            else if (item.Name.StartsWith(prefix, StringComparison.Ordinal))
             {
-                result.Add((entry, string.Empty));
-            }
-            else if (name.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                result.Add((entry, name[prefix.Length..]));
+                result.Add((item, item.Name[prefix.Length..]));
             }
         }
 

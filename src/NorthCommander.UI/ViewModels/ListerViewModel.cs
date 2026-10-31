@@ -110,7 +110,7 @@ public sealed partial class ListerViewModel : ViewModelBase
         {
             if (deleteOnClose)
             {
-                ZipArchiveService.DeleteTemporaryFile(path);
+                ArchiveService.DeleteTemporaryFile(path);
             }
 
             return ex.Message;
@@ -141,7 +141,7 @@ public sealed partial class ListerViewModel : ViewModelBase
         _source = null;
         if (_temporaryFile is not null)
         {
-            ZipArchiveService.DeleteTemporaryFile(_temporaryFile);
+            ArchiveService.DeleteTemporaryFile(_temporaryFile);
             _temporaryFile = null;
         }
 

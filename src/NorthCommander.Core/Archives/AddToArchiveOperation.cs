@@ -23,9 +23,9 @@ public sealed class AddToArchiveOperation : IFileOperation
     public async Task ExecuteAsync(FileTransferTask task, FileOperationContext context)
     {
         var destinationFolder = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(task.DestinationPath)) ?? string.Empty;
-        if (!ZipArchiveService.TryParse(destinationFolder, out var archivePath, out var targetFolder))
+        if (!ArchiveService.TryParse(destinationFolder, out var archivePath, out var targetFolder))
         {
-            throw new IOException($"Target is not inside a ZIP archive: {task.DestinationPath}");
+            throw new IOException($"Target is not inside an archive: {task.DestinationPath}");
         }
 
         var entryRoot = (targetFolder.Length == 0 ? string.Empty : targetFolder + "/") + Path.GetFileName(task.DestinationPath);
@@ -36,7 +36,7 @@ public sealed class AddToArchiveOperation : IFileOperation
         var temporary = FileTransferPaths.GetUniquePath(archivePath + ".ncpart");
         try
         {
-            using (var source = ZipArchiveService.OpenRead(archivePath))
+            using (var source = ArchiveService.OpenZip(archivePath))
             {
                 var existing = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
                 foreach (var entry in source.Entries)
@@ -63,7 +63,7 @@ public sealed class AddToArchiveOperation : IFileOperation
                     if (existing.TryGetValue(entryName, out var current))
                     {
                         var stamp = new FileStamp(current.Length, current.LastWriteTime.LocalDateTime);
-                        switch (await context.ResolveConflictAsync(file, ZipArchiveService.ToVirtualPath(archivePath, entryName), null, stamp).ConfigureAwait(false))
+                        switch (await context.ResolveConflictAsync(file, ArchiveService.ToVirtualPath(archivePath, entryName), null, stamp).ConfigureAwait(false))
                         {
                             case FileConflictResolution.Overwrite:
                                 replaced.Add(entryName);
@@ -92,7 +92,7 @@ public sealed class AddToArchiveOperation : IFileOperation
                         var copy = target.CreateEntry(entry.FullName, CompressionLevel.Optimal);
                         copy.LastWriteTime = entry.LastWriteTime;
                         copy.ExternalAttributes = entry.ExternalAttributes;
-                        if (!ZipArchiveService.IsDirectoryEntry(entry))
+                        if (!ArchiveService.IsDirectoryEntry(entry))
                         {
                             await using var from = entry.Open();
                             await using var to = copy.Open();

@@ -36,12 +36,14 @@ public sealed partial class TabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
-    /// <summary>True while the tab shows a folder inside a ZIP archive.</summary>
+    /// <summary>True while the tab shows a folder inside an archive.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayPath))]
     public partial bool IsInArchive { get; private set; }
 
-    public string DisplayPath => IsInArchive ? $"[ZIP] {CurrentPath}" : CurrentPath;
+    public string DisplayPath => IsInArchive && ArchiveService.TryParse(CurrentPath, out var archive, out _)
+        ? $"[{ArchiveService.GetArchiveTag(archive)}] {CurrentPath}"
+        : CurrentPath;
 
     /// <summary>False for the last tab of a panel.</summary>
     [ObservableProperty]
@@ -235,7 +237,7 @@ public sealed partial class TabViewModel : ViewModelBase
     {
         try
         {
-            OpenWithShell(await ZipArchiveService.ExtractToTempAsync(path));
+            OpenWithShell(await ArchiveService.ExtractToTempAsync(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

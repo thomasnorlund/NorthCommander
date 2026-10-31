@@ -271,7 +271,7 @@ public partial class FilePanelView : UserControl
         data.Add(first);
 
         // Real files also go out as platform file items (CF_HDROP on Windows), so Explorer and other apps accept them.
-        // Entries inside a ZIP have no file on disk; they can only be dropped onto NorthCommander panels.
+        // Entries inside an archive have no file on disk; they can only be dropped onto NorthCommander panels.
         if (!tab.IsInArchive && TopLevel.GetTopLevel(this)?.StorageProvider is { } storage)
         {
             var hasFile = false;

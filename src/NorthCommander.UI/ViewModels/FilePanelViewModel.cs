@@ -78,7 +78,7 @@ public sealed partial class FilePanelViewModel : ViewModelBase
         }
 
         await Task.WhenAll(tabs.Select((tab, i) =>
-            tab.LoadAsync(Directory.Exists(saved[i].Path) || ZipArchiveService.IsArchivePath(saved[i].Path) ? saved[i].Path : fallbackPath)));
+            tab.LoadAsync(Directory.Exists(saved[i].Path) || ArchiveService.IsArchivePath(saved[i].Path) ? saved[i].Path : fallbackPath)));
 
         // Lock only after loading: a locked tab refuses to change its folder.
         for (var i = 0; i < tabs.Count; i++)

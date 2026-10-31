@@ -78,7 +78,7 @@ NorthCommander.sln
 - Drag and drop with Explorer and other apps: files dropped from Explorer or the Desktop onto a panel (or a
   folder row, or an open ZIP) open the same Copy dialog (`Shift` for Move); NorthCommander does the copy or
   move itself in the background queue. Dragging items out of a panel hands them to the target app as normal
-  files (e.g. Explorer copies them). Entries inside a ZIP can only be dropped onto NorthCommander panels.
+  files (e.g. Explorer copies them). Entries inside an archive can only be dropped onto NorthCommander panels.
 - Lister (F3): files are read through a memory-mapped sliding window (`MappedFileSource`), and only the
   visible page is decoded (`TextPager` for UTF-8 text with wrapping, `HexFormatter` for
   `Offset | Hex | ASCII` rows), so multi-gigabyte files open instantly with constant memory.
@@ -86,12 +86,14 @@ NorthCommander.sln
 - Multi-rename (Ctrl+M): name/extension masks with `[N]`, `[N2-5]`, `[N3]`, `[N2-]`, `[N-3-]`, `[N2,4]`, `[E]`,
   `[C]` (start/step/digits), plus search & replace. The preview flags invalid characters, duplicates and
   existing targets; Start renames sequentially (swaps like a→b, b→a work) and logs failures per row.
-- ZIP archives (shown in magenta) open like folders with Enter/double-click; the path header shows `[ZIP]`,
+- Archives (shown in magenta) open like folders with Enter/double-click: ZIP, 7z, RAR, TAR and compressed TARs
+  (`.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz`). The path header shows the type, e.g. `[7Z]`,
   and `..` at the archive root returns to the host folder. F3 views files inside (extracted to a temp file),
-  F5 out of an archive extracts in the background queue, and F5 into an archive (the other panel shows a
-  folder inside a ZIP) adds files/folders. The archive is rebuilt into a temp file and swapped in only on
+  F5 out of an archive extracts in the background queue, and F5 into a ZIP (the other panel shows a
+  folder inside a ZIP) adds files/folders. 7z, RAR and TAR archives are read-only (read through SharpCompress),
+  and password-protected archives show an error. The archive is rebuilt into a temp file and swapped in only on
   success. Move, rename and delete inside archives are not supported yet.
-- Sync dirs (Ctrl+Shift+S): compares both panels' folders (ZIP folders too) by relative path, size and
+- Sync dirs (Ctrl+Shift+S): compares both panels' folders (folders inside archives too) by relative path, size and
   modification time (optional 2 s tolerance). `->`/`<-` = newer or missing on the other side, `!=` = same time but
   different size (skipped), `=` = identical. Synchronize queues the copies (overwriting the older file) in the
   background queue, extracting from or packing into ZIPs as needed.

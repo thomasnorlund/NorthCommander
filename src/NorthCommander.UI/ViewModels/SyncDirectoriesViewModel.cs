@@ -4,7 +4,7 @@ using NorthCommander.Core.Sync;
 
 namespace NorthCommander.UI.ViewModels;
 
-/// <summary>Directory synchronization tool: compares two folders (or ZIP folders) and queues the copies that make them equal.</summary>
+/// <summary>Directory synchronization tool: compares two folders (or folders inside archives) and queues the copies that make them equal.</summary>
 public sealed partial class SyncDirectoriesViewModel : ViewModelBase
 {
     private Func<IReadOnlyList<SyncItem>, string, string, string?>? _synchronize;

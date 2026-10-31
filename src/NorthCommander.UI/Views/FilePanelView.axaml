@@ -85,7 +85,9 @@
             <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Padding="8,3">
                 <Panel>
                     <Panel IsVisible="{Binding !ShowTransferStatus}">
-                        <TextBlock Text="{Binding SelectedTab.StatusText}" FontSize="12" />
+                        <TextBlock Text="{Binding SelectedTab.StatusText}"
+                                   IsVisible="{Binding SelectedTab.ErrorMessage, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                   FontSize="12" />
                         <TextBlock Text="{Binding SelectedTab.ErrorMessage}"
                                    IsVisible="{Binding SelectedTab.ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                    Foreground="{StaticResource ErrorBrush}"

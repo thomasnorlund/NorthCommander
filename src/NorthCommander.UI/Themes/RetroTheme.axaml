@@ -144,7 +144,7 @@
         <Setter Property="Foreground" Value="{StaticResource CursorForegroundBrush}" />
     </Style>
 
-    <!-- ZIP archives (Enter opens them like folders) -->
+    <!-- Archives: ZIP, 7z, RAR, TAR (Enter opens them like folders) -->
     <Style Selector="Border#PanelFrame Grid.archive TextBlock.cell">
         <Setter Property="Foreground" Value="{StaticResource ArchiveBrush}" />
     </Style>

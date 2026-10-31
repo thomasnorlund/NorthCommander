@@ -1,3 +1,4 @@
+using NorthCommander.Core.Archives;
 using System.Globalization;
 using NorthCommander.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,8 +23,8 @@ public sealed partial class FileItemViewModel(FileSystemEntry entry) : Observabl
 
     public bool IsParentLink => Entry.IsParentLink;
 
-    /// <summary>A .zip file: Enter opens it like a folder.</summary>
-    public bool IsArchive => Entry.Kind == FileSystemEntryKind.File && string.Equals(Entry.Extension, "zip", StringComparison.OrdinalIgnoreCase);
+    /// <summary>An archive (ZIP, 7z, RAR, TAR…): Enter opens it like a folder.</summary>
+    public bool IsArchive => Entry.Kind == FileSystemEntryKind.File && ArchiveService.IsArchiveFile(Entry.FullPath);
 
     public double Opacity => Entry.IsHidden ? 0.55 : 1.0;
 

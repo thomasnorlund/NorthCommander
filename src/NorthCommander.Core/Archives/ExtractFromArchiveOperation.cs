@@ -2,61 +2,64 @@ using NorthCommander.Core.Transfers;
 
 namespace NorthCommander.Core.Archives;
 
-/// <summary>Copies a file or folder out of a ZIP archive (<see cref="FileTransferType.Extract"/>).</summary>
+/// <summary>Copies a file or folder out of an archive (<see cref="FileTransferType.Extract"/>).</summary>
 public sealed class ExtractFromArchiveOperation : IFileOperation
 {
     public FileTransferType Type => FileTransferType.Extract;
 
     public async Task ExecuteAsync(FileTransferTask task, FileOperationContext context)
     {
-        if (!ZipArchiveService.TryParse(task.SourcePath, out var archivePath, out var innerPath) || innerPath.Length == 0)
+        if (!ArchiveService.TryParse(task.SourcePath, out var archivePath, out var innerPath) || innerPath.Length == 0)
         {
-            throw new FileNotFoundException($"Not an item inside a ZIP archive: {task.SourcePath}");
+            throw new FileNotFoundException($"Not an item inside an archive: {task.SourcePath}");
         }
 
-        using var archive = ZipArchiveService.OpenRead(archivePath);
-        var entries = ZipArchiveService.SelectEntries(archive, innerPath);
+        using var archive = ArchiveService.OpenRead(archivePath);
+        var entries = ArchiveService.SelectEntries(archive, innerPath);
         if (entries.Count == 0)
         {
             throw new FileNotFoundException($"'{innerPath}' not found in {Path.GetFileName(archivePath)}.");
         }
 
-        context.SetTotalBytes(entries.Sum(e => e.Entry.Length));
+        context.SetTotalBytes(entries.Sum(e => e.Item.Length));
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(task.DestinationPath));
-        if (entries.Exists(e => e.RelativePath.Length > 0))
+        var targets = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (item, relativePath) in entries)
         {
-            Directory.CreateDirectory(root);
-        }
-
-        foreach (var (entry, relativePath) in entries)
-        {
-            await context.CheckpointAsync().ConfigureAwait(false);
             var target = relativePath.Length == 0
                 ? root
-                : Path.GetFullPath(Path.Combine(root, relativePath.TrimEnd('/').Replace('/', Path.DirectorySeparatorChar)));
+                : Path.GetFullPath(Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar)));
             if (!IsInside(target, root))
             {
-                throw new IOException($"Unsafe path in archive: {entry.FullName}");
+                throw new IOException($"Unsafe path in archive: {item.Name}");
             }
 
-            if (ZipArchiveService.IsDirectoryEntry(entry))
+            if (item.IsDirectory)
             {
                 Directory.CreateDirectory(target);
-                continue;
             }
+            else
+            {
+                targets[item.Key] = target;
+            }
+        }
 
+        // Files are read in archive order, so compressed TARs and solid archives are decompressed only once.
+        foreach (var (item, input) in archive.Read(i => targets.ContainsKey(i.Key)))
+        {
+            await context.CheckpointAsync().ConfigureAwait(false);
+            var target = targets[item.Key];
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            var source = ZipArchiveService.ToVirtualPath(archivePath, ZipArchiveService.NormalizeEntryName(entry.FullName)!);
-            var stamp = new FileStamp(entry.Length, entry.LastWriteTime.LocalDateTime);
+            var source = ArchiveService.ToVirtualPath(archivePath, item.Name);
+            var stamp = new FileStamp(item.Length, item.LastWriteTime);
             if (await FileTransferEngine.ResolveFileTargetAsync(source, target, context, stamp).ConfigureAwait(false) is not { } fileTarget)
             {
-                context.ReportBytesTransferred(entry.Length);
+                context.ReportBytesTransferred(item.Length);
                 continue;
             }
 
             context.SetCurrentItem(source);
-            await using var input = entry.Open();
-            await FileTransferEngine.WriteStreamAsync(input, fileTarget.Path, fileTarget.Overwrite, entry.LastWriteTime.UtcDateTime, context).ConfigureAwait(false);
+            await FileTransferEngine.WriteStreamAsync(input, fileTarget.Path, fileTarget.Overwrite, item.LastWriteTime.ToUniversalTime(), context).ConfigureAwait(false);
         }
     }
 

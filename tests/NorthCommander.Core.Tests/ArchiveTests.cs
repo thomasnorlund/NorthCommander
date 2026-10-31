@@ -36,12 +36,12 @@ public sealed class ArchiveTests : IDisposable
     [Fact]
     public void Parses_virtual_paths()
     {
-        Assert.True(ZipArchiveService.TryParse(_zip, out var archive, out var inner));
+        Assert.True(ArchiveService.TryParse(_zip, out var archive, out var inner));
         Assert.Equal((_zip, ""), (archive, inner));
-        Assert.True(ZipArchiveService.TryParse(Path.Combine(_zip, "docs", "sub"), out archive, out inner));
+        Assert.True(ArchiveService.TryParse(Path.Combine(_zip, "docs", "sub"), out archive, out inner));
         Assert.Equal((_zip, "docs/sub"), (archive, inner));
-        Assert.False(ZipArchiveService.TryParse(_root.FullName, out _, out _));
-        Assert.False(ZipArchiveService.TryParse(Path.Combine(_root.FullName, "nothing.zip", "x"), out _, out _));
+        Assert.False(ArchiveService.TryParse(_root.FullName, out _, out _));
+        Assert.False(ArchiveService.TryParse(Path.Combine(_root.FullName, "nothing.zip", "x"), out _, out _));
     }
 
     [Fact]
@@ -137,10 +137,10 @@ public sealed class ArchiveTests : IDisposable
     [Fact]
     public async Task Extracts_single_entry_to_temp()
     {
-        var temp = await ZipArchiveService.ExtractToTempAsync(Path.Combine(_zip, "docs", "sub", "b.txt"));
+        var temp = await ArchiveService.ExtractToTempAsync(Path.Combine(_zip, "docs", "sub", "b.txt"));
 
         Assert.Equal("BB", File.ReadAllText(temp));
-        ZipArchiveService.DeleteTemporaryFile(temp);
+        ArchiveService.DeleteTemporaryFile(temp);
         Assert.False(File.Exists(temp));
     }
 
