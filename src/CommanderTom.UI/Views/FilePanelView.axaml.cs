@@ -44,7 +44,7 @@ public partial class FilePanelView : UserControl
         }
     }
 
-    private void FocusSelectedItem()
+    public void FocusSelectedItem()
     {
         // Post so the ListBox has applied the new ItemsSource/SelectedItem before we look for the container.
         Dispatcher.UIThread.Post(() =>

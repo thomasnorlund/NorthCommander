@@ -4,12 +4,23 @@
              RequestedThemeVariant="Default">
 
     <Application.Resources>
-        <SolidColorBrush x:Key="ActivePanelBrush" Color="#1E6FD9" />
-        <SolidColorBrush x:Key="ActivePanelForegroundBrush" Color="White" />
-        <SolidColorBrush x:Key="InactivePanelBrush" Color="#55808080" />
-        <SolidColorBrush x:Key="InactiveHeaderBrush" Color="#22808080" />
-        <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#40808080" />
-        <SolidColorBrush x:Key="ErrorBrush" Color="#D93025" />
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#2B2B2B" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <SolidColorBrush x:Key="ActivePanelBrush" Color="#1E6FD9" />
+            <SolidColorBrush x:Key="ActivePanelForegroundBrush" Color="White" />
+            <SolidColorBrush x:Key="InactivePanelBrush" Color="#55808080" />
+            <SolidColorBrush x:Key="InactiveHeaderBrush" Color="#22808080" />
+            <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#40808080" />
+            <SolidColorBrush x:Key="ErrorBrush" Color="#D93025" />
+            <SolidColorBrush x:Key="OverlayBackdropBrush" Color="#66000000" />
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>

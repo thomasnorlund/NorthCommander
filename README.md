@@ -3,7 +3,7 @@
 A modern, high-performance orthodox (dual-pane) file manager for Windows, inspired by Total Commander.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net/) using the MVVM pattern.
 
-> Status: Phase 1 (foundation) – two panels, async directory listing, keyboard navigation.
+> Status: Phase 2 – two panels, async directory listing, keyboard navigation, background F5/F6 copy/move queue.
 
 ## Requirements
 
@@ -27,6 +27,9 @@ dotnet test
 | `Enter` / double-click | Open folder (or launch file with its default app) |
 | `Backspace` | Go to parent folder |
 | `Ctrl+R` | Refresh panel |
+| `F5` | Copy selected item to the other panel (confirm target in overlay) |
+| `F6` | Move/rename selected item to the other panel (confirm target in overlay) |
+| `Enter` / `Esc` (in dialog) | Confirm / cancel |
 
 ## Project layout
 
@@ -34,7 +37,8 @@ dotnet test
 CommanderTom.sln
 ├── src/CommanderTom.Core          Class library, no UI dependencies
 │   ├── Models/                    FileSystemEntry, DirectoryListing
-│   └── Services/                  IDirectoryService, DirectoryService
+│   ├── Services/                  IDirectoryService, DirectoryService
+│   └── Transfers/                 IFileOperation, FileTransferTask, BackgroundTransferQueue, copy/move operations
 ├── src/CommanderTom.UI            Avalonia desktop app (MVVM)
 │   ├── ViewModels/                MainWindowViewModel, FilePanelViewModel, FileItemViewModel
 │   └── Views/                     MainWindow, FilePanelView
@@ -46,6 +50,12 @@ CommanderTom.sln
 - **`FilePanelViewModel`** loads directories asynchronously, cancels superseded loads, and keeps the
   previous listing visible on errors.
 - **`MainWindowViewModel`** owns the left/right panels and tracks the active one.
+- **`BackgroundTransferQueue`** (singleton) runs `FileTransferTask`s on background workers – one by default
+  (FIFO), configurable via `BackgroundTransferQueueOptions.MaxParallelTransfers`. Tasks can be paused,
+  resumed and canceled individually or all at once, whether queued or running. Copies stream through a
+  pooled 1 MiB buffer, never overwrite existing files, and delete partial output on failure/cancel.
+  Moves try a same-volume rename first and fall back to copy + delete.
+- While transfers run, the active panel's status bar shows progress with Pause/Resume and Cancel buttons.
 - Dependencies are wired with `Microsoft.Extensions.DependencyInjection` in `App.axaml.cs`;
   MVVM plumbing uses `CommunityToolkit.Mvvm` source generators.
 

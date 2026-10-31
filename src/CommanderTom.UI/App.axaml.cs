@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using CommanderTom.Core.Services;
+using CommanderTom.Core.Transfers;
 using CommanderTom.UI.ViewModels;
 using CommanderTom.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ namespace CommanderTom.UI;
 
 public partial class App : Application
 {
-    public IServiceProvider Services { get; private set; } = null!;
+    public ServiceProvider Services { get; private set; } = null!;
 
     public override void Initialize()
     {
@@ -27,6 +28,9 @@ public partial class App : Application
             {
                 DataContext = Services.GetRequiredService<MainWindowViewModel>(),
             };
+
+            // Disposing the provider cancels pending transfers and cleans up partial files.
+            desktop.Exit += (_, _) => Services.Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -37,6 +41,12 @@ public partial class App : Application
         var services = new ServiceCollection();
 
         services.AddSingleton<IDirectoryService, DirectoryService>();
+
+        services.AddSingleton<IFileOperation, CopyFileOperation>();
+        services.AddSingleton<IFileOperation, MoveFileOperation>();
+        services.AddSingleton(new BackgroundTransferQueueOptions { MaxParallelTransfers = 1 });
+        services.AddSingleton<IBackgroundTransferQueue, BackgroundTransferQueue>();
+        services.AddSingleton<TransferQueueViewModel>();
 
         // Transient: each injection gets its own panel (left and right).
         services.AddTransient<FilePanelViewModel>();

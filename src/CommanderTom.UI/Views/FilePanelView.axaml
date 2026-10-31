@@ -52,6 +52,14 @@
             <Setter Property="Background" Value="{StaticResource InactiveSelectionBrush}" />
         </Style>
 
+        <Style Selector="Button.statusButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style Selector="TextBlock.cell">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -90,17 +98,47 @@
                 <TextBlock Grid.Column="3" Classes="columnHeader" Text="Date" Margin="12,0,0,0" />
             </Grid>
 
-            <!-- Status bar -->
+            <!-- Status bar: listing summary, or transfer progress while this panel is focused -->
             <Border DockPanel.Dock="Bottom" Padding="8,3"
                     Background="{StaticResource InactiveHeaderBrush}">
                 <Panel>
-                    <TextBlock Text="{Binding StatusText}" FontSize="12" />
-                    <TextBlock Text="{Binding ErrorMessage}"
-                               IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                               Foreground="{StaticResource ErrorBrush}"
-                               HorizontalAlignment="Right"
-                               TextTrimming="CharacterEllipsis"
-                               FontSize="12" />
+                    <Panel IsVisible="{Binding !ShowTransferStatus}">
+                        <TextBlock Text="{Binding StatusText}" FontSize="12" />
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   Foreground="{StaticResource ErrorBrush}"
+                                   HorizontalAlignment="Right"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontSize="12" />
+                    </Panel>
+
+                    <Grid IsVisible="{Binding ShowTransferStatus}"
+                          ColumnDefinitions="140,*,Auto,Auto"
+                          ColumnSpacing="8">
+                        <ProgressBar Grid.Column="0"
+                                     Minimum="0" Maximum="100"
+                                     Value="{Binding Transfers.ProgressPercentage}"
+                                     Foreground="{StaticResource ActivePanelBrush}"
+                                     MinWidth="0" MinHeight="6" Height="6"
+                                     VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Transfers.StatusText}"
+                                   FontSize="12"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="2"
+                                Classes="statusButton"
+                                Command="{Binding Transfers.TogglePauseCommand}">
+                            <Panel>
+                                <TextBlock Text="Pause" IsVisible="{Binding !Transfers.IsPaused}" />
+                                <TextBlock Text="Resume" IsVisible="{Binding Transfers.IsPaused}" />
+                            </Panel>
+                        </Button>
+                        <Button Grid.Column="3"
+                                Classes="statusButton"
+                                Content="Cancel"
+                                Command="{Binding Transfers.CancelAllCommand}" />
+                    </Grid>
                 </Panel>
             </Border>
 
