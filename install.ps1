@@ -5,12 +5,16 @@
 .DESCRIPTION
     Uses the NorthCommander.exe in the folder this script lives in. Nothing is copied and no
     administrator rights are needed. The script:
-      1. creates NorthCommander.lnk in the Start Menu and on the Desktop,
+      1. creates NorthCommander.lnk in the Start Menu and on the Desktop (setup.ps1 / Setup.cmd
+         offers the same steps in a window),
       2. adds this folder to the user PATH, so "northcommander" or "north" (north.cmd)
          starts NorthCommander from any new terminal.
     NorthCommander itself keeps all settings in NorthCommander.config.json next to the exe.
     The PATH entry is the only registry change (HKCU\Environment, where Windows stores the
     user PATH). Run uninstall.ps1 to undo everything.
+
+.PARAMETER NoStartMenu
+    Skip the Start Menu shortcut.
 
 .PARAMETER NoDesktop
     Skip the Desktop shortcut.
@@ -23,6 +27,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
+    [switch]$NoStartMenu,
     [switch]$NoDesktop,
     [switch]$NoPath
 )
@@ -115,7 +120,9 @@ function Add-NorthCommanderToUserPath {
 # Files from a downloaded zip carry the "downloaded from the internet" mark; clear it for this folder only.
 Get-ChildItem -LiteralPath $appFolder -Recurse -File | Unblock-File
 
-New-NorthCommanderShortcut -Path $startMenuShortcut
+if (-not $NoStartMenu) {
+    New-NorthCommanderShortcut -Path $startMenuShortcut
+}
 if (-not $NoDesktop) {
     New-NorthCommanderShortcut -Path $desktopShortcut
 }
