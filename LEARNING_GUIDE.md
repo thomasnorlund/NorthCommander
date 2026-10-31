@@ -6,8 +6,7 @@ their own project.
 
 ## 1. What NorthCommander is
 
-An orthodox (dual-pane) file manager for Windows in the tradition of Norton Commander and Total
-Commander: two file panels side by side, everything reachable from the keyboard, file operations
+An orthodox (dual-pane) file manager for Windows in the tradition of other legendary File Commander applications: two file panels side by side, everything reachable from the keyboard, file operations
 always going "from the active panel to the other one".
 
 | Area | Choice |
