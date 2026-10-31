@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:NorthCommander.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="NorthCommander.UI.Views.MultiRenameView"
+             x:DataType="vm:MultiRenameViewModel">
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding StartCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+    </UserControl.KeyBindings>
+
+    <Border Background="{StaticResource OverlayBackdropBrush}">
+        <Border x:Name="RenameFrame"
+                Margin="40,30"
+                MaxWidth="1400"
+                Background="{DynamicResource DialogBackgroundBrush}"
+                BorderBrush="{StaticResource ActivePanelBrush}"
+                BorderThickness="2"
+                CornerRadius="4"
+                BoxShadow="0 8 32 0 #60000000">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="{StaticResource ActivePanelBrush}" Padding="14,6">
+                    <TextBlock Text="Multi-Rename Tool (Ctrl+M)" FontWeight="SemiBold" Foreground="{StaticResource ActivePanelForegroundBrush}" />
+                </Border>
+
+                <!-- Masks -->
+                <Grid DockPanel.Dock="Top"
+                      Margin="14,12,14,6"
+                      ColumnDefinitions="Auto,*,16,Auto,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto"
+                      RowSpacing="8"
+                      ColumnSpacing="8"
+                      IsEnabled="{Binding IsEditable}">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name mask:" />
+                    <DockPanel Grid.Row="0" Grid.Column="1">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="6,0,0,0">
+                            <Button Classes="token" Content="[N]" Command="{Binding InsertTokenCommand}" CommandParameter="[N]" ToolTip.Tip="Original name" />
+                            <Button Classes="token" Content="[N#-#]" Command="{Binding InsertTokenCommand}" CommandParameter="[N1-3]" ToolTip.Tip="Characters 1 to 3 of the name (edit the numbers)" />
+                            <Button Classes="token" Content="[E]" Command="{Binding InsertTokenCommand}" CommandParameter="[E]" ToolTip.Tip="Original extension" />
+                            <Button Classes="token" Content="[C]" Command="{Binding InsertTokenCommand}" CommandParameter="[C]" ToolTip.Tip="Counter" />
+                        </StackPanel>
+                        <TextBox x:Name="NameMaskBox" Text="{Binding NameMask}" />
+                    </DockPanel>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Classes="label" Text="Extension mask:" />
+                    <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding ExtensionMask}" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Search for:" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SearchText}" />
+                    <TextBlock Grid.Row="1" Grid.Column="3" Classes="label" Text="Replace with:" />
+                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding ReplaceText}" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Counter [C]:" />
+                    <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="label" Text="Start" />
+                        <NumericUpDown Value="{Binding CounterStart}" Minimum="-999999" Maximum="999999999" Increment="1" FormatString="0" Width="130" />
+                        <TextBlock Classes="label" Text="Step" Margin="8,0,0,0" />
+                        <NumericUpDown Value="{Binding CounterStep}" Minimum="-9999" Maximum="9999" Increment="1" FormatString="0" Width="110" />
+                        <TextBlock Classes="label" Text="Digits" Margin="8,0,0,0" />
+                        <NumericUpDown Value="{Binding CounterDigits}" Minimum="1" Maximum="10" Increment="1" FormatString="0" Width="100" />
+                        <Button Content="Reset" Command="{Binding ResetMasksCommand}" Margin="16,0,0,0" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5"
+                               Classes="hint"
+                               Text="[N] name   [N2-5] chars 2-5   [N3] char 3   [N2-] from 2   [N-3-] last 3   [N2,4] 4 chars from 2   [E] extension   [C] counter   [[ ]] literal brackets" />
+                </Grid>
+
+                <!-- Footer -->
+                <Grid DockPanel.Dock="Bottom" Margin="14,8,14,12" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding MaskError}"
+                                   IsVisible="{Binding MaskError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   Foreground="{StaticResource ErrorBrush}" />
+                        <TextBlock Text="{Binding Summary}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Start" Classes="accent" MinWidth="100" HorizontalContentAlignment="Center" Command="{Binding StartCommand}" />
+                    <Button Grid.Column="2" Content="Close" MinWidth="100" HorizontalContentAlignment="Center" Command="{Binding CloseCommand}" />
+                </Grid>
+
+                <!-- Live preview -->
+                <Border x:Name="RenamePreviewFrame" Margin="14,4,14,0">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="2*,2*,3*,2*" Margin="12,4,12,2">
+                            <TextBlock Grid.Column="0" Classes="columnHeader" Text="Old Name" />
+                            <TextBlock Grid.Column="1" Classes="columnHeader" Text="New Name" />
+                            <TextBlock Grid.Column="2" Classes="columnHeader" Text="Path" />
+                            <TextBlock Grid.Column="3" Classes="columnHeader" Text="Status" />
+                        </Grid>
+                        <ListBox x:Name="RenamePreview" ItemsSource="{Binding Items}" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MultiRenameItemViewModel">
+                                    <Grid ColumnDefinitions="2*,2*,3*,2*" Classes.error="{Binding HasError}" Classes.done="{Binding IsDone}">
+                                        <TextBlock Grid.Column="0" Classes="cell" Text="{Binding OldName}" ToolTip.Tip="{Binding OldName}" />
+                                        <TextBlock Grid.Column="1" Classes="cell newName" Text="{Binding NewName}" ToolTip.Tip="{Binding NewName}" />
+                                        <TextBlock Grid.Column="2" Classes="cell" Text="{Binding Folder}" TextTrimming="PrefixCharacterEllipsis" ToolTip.Tip="{Binding Folder}" />
+                                        <TextBlock Grid.Column="3" Classes="cell status" Text="{Binding Status}" ToolTip.Tip="{Binding Status}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+    </Border>
+</UserControl>

@@ -14,6 +14,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+M" Command="{Binding MultiRenameFilesCommand}" />
         <KeyBinding Gesture="F3" Command="{Binding ViewCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
         <KeyBinding Gesture="F6" Command="{Binding MoveCommand}" />
@@ -46,6 +47,7 @@
                     <TextBlock Text="F6  Move" />
                     <TextBlock Text="Shift+F6  Rename" />
                     <TextBlock Text="F8  Delete" />
+                    <TextBlock Text="Ctrl+M  Multi-rename" />
                     <TextBlock Text="Ctrl+R  Refresh" />
                     <TextBlock Text="Ctrl+T/W  New/close tab" />
                     <TextBlock Text="Ctrl+Tab  Next tab" />
@@ -74,6 +76,9 @@
             <views:TransferDialogView x:Name="TransferDialogView"
                                       DataContext="{Binding TransferDialog}"
                                       IsVisible="{Binding IsOpen}" />
+            <views:MultiRenameView x:Name="MultiRenameView"
+                                   DataContext="{Binding MultiRename}"
+                                   IsVisible="{Binding IsOpen}" />
             <views:PromptDialogView x:Name="PromptDialogView"
                                     DataContext="{Binding PromptDialog}"
                                     IsVisible="{Binding IsOpen}" />

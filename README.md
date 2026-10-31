@@ -34,6 +34,7 @@ dotnet test
 | `Shift+F6` / `F2` | Rename the item under the cursor |
 | `F8` / `Delete` | Permanently delete marked items (or the item under the cursor) after confirmation |
 | `Shift+F10` / Menu key | Context menu of the item under the cursor |
+| `Ctrl+M` | Multi-rename marked items (or the item under the cursor) with TC masks and live preview |
 | `Ctrl+T` | New folder tab in the active panel (same folder) |
 | `Ctrl+W` | Close the current tab (the last tab of a panel stays open); middle-click also closes |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab of the active panel |
@@ -73,6 +74,9 @@ NorthCommander.sln
   visible page is decoded (`TextPager` for UTF-8 text with wrapping, `HexFormatter` for
   `Offset | Hex | ASCII` rows), so multi-gigabyte files open instantly with constant memory.
   PNG/JPG/BMP/GIF files open in image mode, scaled down to fit.
+- Multi-rename (Ctrl+M): name/extension masks with `[N]`, `[N2-5]`, `[N3]`, `[N2-]`, `[N-3-]`, `[N2,4]`, `[E]`,
+  `[C]` (start/step/digits), plus search & replace. The preview flags invalid characters, duplicates and
+  existing targets; Start renames sequentially (swaps like a→b, b→a work) and logs failures per row.
 - Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
   (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:

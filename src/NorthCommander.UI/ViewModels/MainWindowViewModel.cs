@@ -22,6 +22,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
         PromptDialog.PropertyChanged += OnDialogPropertyChanged;
         Lister.PropertyChanged += OnDialogPropertyChanged;
+        MultiRename.PropertyChanged += OnDialogPropertyChanged;
 
         LeftPanel.ActivationRequested += OnPanelActivationRequested;
         RightPanel.ActivationRequested += OnPanelActivationRequested;
@@ -44,8 +45,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public ListerViewModel Lister { get; } = new();
 
+    public MultiRenameViewModel MultiRename { get; } = new();
+
     /// <summary>True while an overlay dialog owns the keyboard; the panels are disabled.</summary>
-    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen || Lister.IsOpen;
+    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen || Lister.IsOpen || MultiRename.IsOpen;
 
     [ObservableProperty]
     public partial FilePanelViewModel ActivePanel { get; set; }
@@ -98,6 +101,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             tab.ErrorMessage = $"Cannot view '{Path.GetFileName(item.FullPath)}': {error}";
         }
+    }
+
+    /// <summary>Ctrl+M: multi-rename the marked items (or the item under the cursor).</summary>
+    [RelayCommand]
+    private void MultiRenameFiles()
+    {
+        if (IsModalOpen)
+        {
+            return;
+        }
+
+        var tab = ActivePanel.SelectedTab;
+        var paths = tab.GetSelectedPaths();
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        MultiRename.Open(paths, folders =>
+        {
+            if (folders.Count > 0)
+            {
+                tab.ClearMarks();
+                _ = RefreshTabsShowingAsync(folders);
+            }
+        });
     }
 
     [RelayCommand]

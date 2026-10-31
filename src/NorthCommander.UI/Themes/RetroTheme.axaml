@@ -24,6 +24,7 @@
             <SolidColorBrush x:Key="KeyBarForegroundBrush" Color="#55FFFF" />
             <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#000080" />
             <SolidColorBrush x:Key="ErrorBrush" Color="#FF5555" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="#55FF55" />
             <SolidColorBrush x:Key="OverlayBackdropBrush" Color="#88000000" />
             <FontFamily x:Key="RetroFontFamily">Cascadia Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
         </ResourceDictionary>
@@ -191,6 +192,51 @@
     <Style Selector="Border#ListerHeader TextBlock, Border#ListerStatus TextBlock">
         <Setter Property="Foreground" Value="{StaticResource ActivePanelForegroundBrush}" />
         <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- Multi-rename tool -->
+    <Style Selector="Border#RenameFrame TextBlock.label">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{StaticResource ColumnHeaderBrush}" />
+    </Style>
+    <Style Selector="Border#RenameFrame TextBlock.hint">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Opacity" Value="0.8" />
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+    </Style>
+    <Style Selector="Border#RenameFrame TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+    </Style>
+    <Style Selector="Button.token">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="Padding" Value="6,2" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InactivePanelBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame TextBlock.columnHeader">
+        <Setter Property="Foreground" Value="{StaticResource ColumnHeaderBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ListBox#RenamePreview ListBoxItem">
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame TextBlock.newName">
+        <Setter Property="Foreground" Value="{StaticResource ActivePanelBrush}" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame Grid.error TextBlock.newName, Border#RenamePreviewFrame Grid.error TextBlock.status">
+        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Border#RenamePreviewFrame Grid.done TextBlock.status">
+        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
     </Style>
 
     <!-- Dialogs -->
