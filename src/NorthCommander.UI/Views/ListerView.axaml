@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:NorthCommander.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="NorthCommander.UI.Views.ListerView"
+             x:DataType="vm:ListerViewModel"
+             Focusable="True">
+
+    <Border x:Name="ListerFrame">
+        <DockPanel>
+            <Border x:Name="ListerHeader" DockPanel.Dock="Top" Padding="8,4">
+                <TextBlock Text="{Binding FilePath, StringFormat='Lister - {0}'}" TextTrimming="PrefixCharacterEllipsis" />
+            </Border>
+
+            <Border x:Name="ListerStatus" DockPanel.Dock="Bottom" Padding="8,3">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1" Text="1 Text  2 Hex  3 Image  W Wrap  Esc Close" />
+                </Grid>
+            </Border>
+
+            <ScrollBar x:Name="ListerScrollBar"
+                       DockPanel.Dock="Right"
+                       Orientation="Vertical"
+                       AllowAutoHide="False"
+                       Minimum="0"
+                       Maximum="{Binding ScrollMaximum}"
+                       ViewportSize="{Binding ScrollViewport}"
+                       Value="{Binding ScrollValue}"
+                       IsVisible="{Binding !IsImageMode}" />
+
+            <Panel x:Name="Viewport" ClipToBounds="True" Background="Transparent">
+                <TextBlock x:Name="ListerText"
+                           Classes.hex="{Binding IsHexMode}"
+                           Text="{Binding PageText}"
+                           IsVisible="{Binding !IsImageMode}"
+                           TextWrapping="NoWrap"
+                           FontSize="13"
+                           LineHeight="17"
+                           Margin="6,4" />
+                <Image Source="{Binding Image}"
+                       IsVisible="{Binding IsImageMode}"
+                       Stretch="Uniform"
+                       StretchDirection="DownOnly"
+                       Margin="8" />
+                <TextBlock Text="{Binding ImageMessage}"
+                           IsVisible="{Binding IsImageMode}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+            </Panel>
+        </DockPanel>
+    </Border>
+</UserControl>

@@ -26,7 +26,9 @@ public partial class MainWindow : Window
         _viewModel?.TransferDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.ConflictDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.PromptDialog.PropertyChanged -= OnDialogPropertyChanged;
+        _viewModel?.Lister.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel = DataContext as MainWindowViewModel;
+        _viewModel?.Lister.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.PromptDialog.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.TransferDialog.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
@@ -83,6 +85,10 @@ public partial class MainWindow : Window
             else if (_viewModel.TransferDialog.IsOpen)
             {
                 TransferDialogView.FocusTarget();
+            }
+            else if (_viewModel.Lister.IsOpen)
+            {
+                ListerView.FocusViewer();
             }
             else
             {

@@ -172,6 +172,27 @@
         <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
     </Style>
 
+    <!-- Lister (F3 viewer) -->
+    <Style Selector="Border#ListerFrame">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource ActivePanelBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Border#ListerFrame TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+    </Style>
+    <Style Selector="Border#ListerFrame TextBlock#ListerText.hex">
+        <Setter Property="Foreground" Value="{StaticResource ActivePanelBrush}" />
+    </Style>
+    <Style Selector="Border#ListerHeader, Border#ListerStatus">
+        <Setter Property="Background" Value="{StaticResource ActivePanelBrush}" />
+    </Style>
+    <Style Selector="Border#ListerHeader TextBlock, Border#ListerStatus TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ActivePanelForegroundBrush}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
     <!-- Dialogs -->
     <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter, Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource ErrorBrush}" />

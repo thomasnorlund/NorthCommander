@@ -21,6 +21,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         TransferDialog.PropertyChanged += OnDialogPropertyChanged;
         ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
         PromptDialog.PropertyChanged += OnDialogPropertyChanged;
+        Lister.PropertyChanged += OnDialogPropertyChanged;
 
         LeftPanel.ActivationRequested += OnPanelActivationRequested;
         RightPanel.ActivationRequested += OnPanelActivationRequested;
@@ -41,8 +42,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public PromptDialogViewModel PromptDialog { get; } = new();
 
+    public ListerViewModel Lister { get; } = new();
+
     /// <summary>True while an overlay dialog owns the keyboard; the panels are disabled.</summary>
-    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen;
+    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen || Lister.IsOpen;
 
     [ObservableProperty]
     public partial FilePanelViewModel ActivePanel { get; set; }
@@ -79,6 +82,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (!IsModalOpen)
         {
             action();
+        }
+    }
+
+    /// <summary>F3: opens the Lister for the file under the cursor.</summary>
+    [RelayCommand]
+    private void View()
+    {
+        if (IsModalOpen || ActivePanel.SelectedTab is not { SelectedItem: { IsDirectory: false, IsParentLink: false } item } tab)
+        {
+            return;
+        }
+
+        if (Lister.Open(item.FullPath) is { } error)
+        {
+            tab.ErrorMessage = $"Cannot view '{Path.GetFileName(item.FullPath)}': {error}";
         }
     }
 

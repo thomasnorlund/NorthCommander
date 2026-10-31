@@ -28,6 +28,7 @@ dotnet test
 | `Backspace` | Go to parent folder |
 | `Ctrl+R` | Refresh panel |
 | `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red |
+| `F3` | Lister: view the file under the cursor (`1` Text, `2` Hex, `3` Image, `W` wrap, `Esc` close) |
 | `F5` | Copy marked items (or the item under the cursor) to the other panel (confirm target in overlay) |
 | `F6` | Move/rename marked items (or the item under the cursor) to the other panel |
 | `Shift+F6` / `F2` | Rename the item under the cursor |
@@ -68,6 +69,10 @@ NorthCommander.sln
   a short right-click opens the context menu (Open, Copy, Move, Rename, Delete, Copy full path,
   Show in Explorer, Properties on Windows). Left-drag items onto the other panel (or onto a folder) to open
   the Copy dialog; hold `Shift` while dropping for Move.
+- Lister (F3): files are read through a memory-mapped sliding window (`MappedFileSource`), and only the
+  visible page is decoded (`TextPager` for UTF-8 text with wrapping, `HexFormatter` for
+  `Offset | Hex | ASCII` rows), so multi-gigabyte files open instantly with constant memory.
+  PNG/JPG/BMP/GIF files open in image mode, scaled down to fit.
 - Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
   (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:

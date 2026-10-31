@@ -14,6 +14,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.KeyBindings>
+        <KeyBinding Gesture="F3" Command="{Binding ViewCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
         <KeyBinding Gesture="F6" Command="{Binding MoveCommand}" />
         <KeyBinding Gesture="Shift+F6" Command="{Binding RenameCommand}" />
@@ -40,6 +41,7 @@
                     <TextBlock Text="Enter  Open" />
                     <TextBlock Text="Ins/Space  Select" />
                     <TextBlock Text="Backspace  Parent folder" />
+                    <TextBlock Text="F3  View" />
                     <TextBlock Text="F5  Copy" />
                     <TextBlock Text="F6  Move" />
                     <TextBlock Text="Shift+F6  Rename" />
@@ -62,6 +64,11 @@
                                      DataContext="{Binding RightPanel}" />
             </Grid>
         </DockPanel>
+
+        <views:ListerView x:Name="ListerView"
+                          DataContext="{Binding Lister}"
+                          IsVisible="{Binding IsOpen}"
+                          IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).ConflictDialog.IsOpen}" />
 
         <Panel IsEnabled="{Binding !ConflictDialog.IsOpen}">
             <views:TransferDialogView x:Name="TransferDialogView"
