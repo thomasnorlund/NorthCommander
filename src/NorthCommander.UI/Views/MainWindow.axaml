@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:NorthCommander.UI.ViewModels"
+        xmlns:views="using:NorthCommander.UI.Views"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
+        x:Class="NorthCommander.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/app.ico"
+        Title="NorthCommander"
+        Width="1200" Height="720"
+        MinWidth="640" MinHeight="400"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
+        <KeyBinding Gesture="F6" Command="{Binding MoveCommand}" />
+        <KeyBinding Gesture="Shift+F6" Command="{Binding RenameCommand}" />
+        <KeyBinding Gesture="F2" Command="{Binding RenameCommand}" />
+        <KeyBinding Gesture="F8" Command="{Binding DeleteCommand}" />
+        <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+        <KeyBinding Gesture="Ctrl+T" Command="{Binding NewTabCommand}" />
+        <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
+    </Window.KeyBindings>
+
+    <Panel>
+        <DockPanel IsEnabled="{Binding !IsModalOpen}">
+            <!-- Key hint bar (Total Commander style) -->
+            <Border x:Name="KeyBar" DockPanel.Dock="Bottom" Padding="8,4">
+                <StackPanel Orientation="Horizontal" Spacing="24">
+                    <StackPanel.Styles>
+                        <Style Selector="TextBlock">
+                            <Setter Property="FontSize" Value="12" />
+                            <Setter Property="Opacity" Value="0.9" />
+                        </Style>
+                    </StackPanel.Styles>
+                    <TextBlock Text="Tab  Switch panel" />
+                    <TextBlock Text="↑ ↓ PgUp PgDn Home End  Navigate" />
+                    <TextBlock Text="Enter  Open" />
+                    <TextBlock Text="Ins/Space  Select" />
+                    <TextBlock Text="Backspace  Parent folder" />
+                    <TextBlock Text="F5  Copy" />
+                    <TextBlock Text="F6  Move" />
+                    <TextBlock Text="Shift+F6  Rename" />
+                    <TextBlock Text="F8  Delete" />
+                    <TextBlock Text="Ctrl+R  Refresh" />
+                    <TextBlock Text="Ctrl+T/W  New/close tab" />
+                    <TextBlock Text="Ctrl+Tab  Next tab" />
+                </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,6,*" Margin="4">
+                <views:FilePanelView x:Name="LeftPanelView"
+                                     Grid.Column="0"
+                                     DataContext="{Binding LeftPanel}" />
+                <GridSplitter Grid.Column="1"
+                              Background="Transparent"
+                              ResizeDirection="Columns" />
+                <views:FilePanelView x:Name="RightPanelView"
+                                     Grid.Column="2"
+                                     DataContext="{Binding RightPanel}" />
+            </Grid>
+        </DockPanel>
+
+        <Panel IsEnabled="{Binding !ConflictDialog.IsOpen}">
+            <views:TransferDialogView x:Name="TransferDialogView"
+                                      DataContext="{Binding TransferDialog}"
+                                      IsVisible="{Binding IsOpen}" />
+            <views:PromptDialogView x:Name="PromptDialogView"
+                                    DataContext="{Binding PromptDialog}"
+                                    IsVisible="{Binding IsOpen}" />
+        </Panel>
+
+        <views:ConflictDialogView x:Name="ConflictDialogView"
+                                  DataContext="{Binding ConflictDialog}"
+                                  IsVisible="{Binding IsOpen}" />
+    </Panel>
+</Window>

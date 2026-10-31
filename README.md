@@ -1,4 +1,4 @@
-# CommanderTom
+# NorthCommander
 
 A modern, high-performance orthodox (dual-pane) file manager for Windows, inspired by Total Commander.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net/) using the MVVM pattern.
@@ -14,7 +14,7 @@ Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net/) using the MVV
 
 ```sh
 dotnet build
-dotnet run --project src/CommanderTom.UI
+dotnet run --project src/NorthCommander.UI
 dotnet test
 ```
 
@@ -41,15 +41,15 @@ dotnet test
 ## Project layout
 
 ```
-CommanderTom.sln
-├── src/CommanderTom.Core          Class library, no UI dependencies
+NorthCommander.sln
+├── src/NorthCommander.Core          Class library, no UI dependencies
 │   ├── Models/                    FileSystemEntry, DirectoryListing
 │   ├── Services/                  IDirectoryService, DirectoryService
 │   └── Transfers/                 IFileOperation, FileTransferTask, BackgroundTransferQueue, copy/move operations
-├── src/CommanderTom.UI            Avalonia desktop app (MVVM)
+├── src/NorthCommander.UI            Avalonia desktop app (MVVM)
 │   ├── ViewModels/                MainWindowViewModel, FilePanelViewModel, FileItemViewModel
 │   └── Views/                     MainWindow, FilePanelView
-└── tests/CommanderTom.Core.Tests  xUnit tests for Core
+└── tests/NorthCommander.Core.Tests  xUnit tests for Core
 ```
 
 - **`DirectoryService`** enumerates with `DirectoryInfo.EnumerateFileSystemInfos` on the thread pool,
@@ -63,7 +63,7 @@ CommanderTom.sln
   pooled 1 MiB buffer, never overwrite existing files, and delete partial output on failure/cancel.
   Moves try a same-volume rename first and fall back to copy + delete.
 - Look: Norton Commander colours (blue `#0000A8` panels, white text, yellow `#FFFF55` marked items,
-  cyan `#55FFFF` focus, grey `#AAAAAA` inactive). All colours live in `src/CommanderTom.UI/Themes/RetroTheme.axaml`.
+  cyan `#55FFFF` focus, grey `#AAAAAA` inactive). All colours live in `src/NorthCommander.UI/Themes/RetroTheme.axaml`.
 - Mouse: double-click opens folders/files; right-drag marks a range of rows (Total Commander style);
   a short right-click opens the context menu (Open, Copy, Move, Rename, Delete, Copy full path,
   Show in Explorer, Properties on Windows). Left-drag items onto the other panel (or onto a folder) to open

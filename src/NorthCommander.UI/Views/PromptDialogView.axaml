@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:NorthCommander.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="NorthCommander.UI.Views.PromptDialogView"
+             x:DataType="vm:PromptDialogViewModel">
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding ConfirmCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </UserControl.KeyBindings>
+
+    <Border Background="{StaticResource OverlayBackdropBrush}">
+        <Border Width="520"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource DialogBackgroundBrush}"
+                BorderBrush="{StaticResource ActivePanelBrush}"
+                BorderThickness="2"
+                CornerRadius="4"
+                BoxShadow="0 8 32 0 #60000000">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="{StaticResource ActivePanelBrush}" Padding="14,6">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource ActivePanelForegroundBrush}" />
+                </Border>
+                <StackPanel Margin="16" Spacing="10">
+                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                    <TextBox x:Name="InputBox" Text="{Binding InputText}" IsVisible="{Binding HasInput}" />
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               Foreground="{StaticResource ErrorBrush}"
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,6,0,0">
+                        <Button x:Name="ConfirmButton"
+                                Content="{Binding ConfirmText}"
+                                Command="{Binding ConfirmCommand}"
+                                Classes="accent"
+                                Classes.danger="{Binding IsDanger}"
+                                MinWidth="90"
+                                HorizontalContentAlignment="Center" />
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" MinWidth="90" HorizontalContentAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Border>
+</UserControl>
