@@ -77,6 +77,11 @@ NorthCommander.sln
 - Multi-rename (Ctrl+M): name/extension masks with `[N]`, `[N2-5]`, `[N3]`, `[N2-]`, `[N-3-]`, `[N2,4]`, `[E]`,
   `[C]` (start/step/digits), plus search & replace. The preview flags invalid characters, duplicates and
   existing targets; Start renames sequentially (swaps like a→b, b→a work) and logs failures per row.
+- ZIP archives (shown in magenta) open like folders with Enter/double-click; the path header shows `[ZIP]`,
+  and `..` at the archive root returns to the host folder. F3 views files inside (extracted to a temp file),
+  F5 out of an archive extracts in the background queue, and F5 into an archive (the other panel shows a
+  folder inside a ZIP) adds files/folders. The archive is rebuilt into a temp file and swapped in only on
+  success. Move, rename and delete inside archives are not supported yet.
 - Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
   (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:

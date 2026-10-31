@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NorthCommander.Core.Archives;
 using NorthCommander.Core.Viewer;
 
 namespace NorthCommander.UI.ViewModels;
@@ -31,6 +32,8 @@ public sealed partial class ListerViewModel : ViewModelBase
     private int _rows = 1;
     private int _columns = 80;
     private double _scrollValue;
+    private string? _realPath;
+    private string? _temporaryFile;
 
     [ObservableProperty]
     public partial bool IsOpen { get; private set; }
@@ -94,7 +97,9 @@ public sealed partial class ListerViewModel : ViewModelBase
     private long MaxHexTop => Math.Max(0, HexFormatter.RowCount(FileSize) - _rows);
 
     /// <summary>Opens <paramref name="path"/>; returns an error message if it cannot be read.</summary>
-    public string? Open(string path)
+    /// <param name="displayPath">Path shown to the user (e.g. the file inside a ZIP) when <paramref name="path"/> is a temporary copy.</param>
+    /// <param name="deleteOnClose">Deletes <paramref name="path"/> (a temporary extraction) when the viewer closes.</param>
+    public string? Open(string path, string? displayPath = null, bool deleteOnClose = false)
     {
         Close();
         try
@@ -103,12 +108,19 @@ public sealed partial class ListerViewModel : ViewModelBase
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            if (deleteOnClose)
+            {
+                ZipArchiveService.DeleteTemporaryFile(path);
+            }
+
             return ex.Message;
         }
 
         _pager = new TextPager(_source);
         _top = 0;
-        FilePath = path;
+        _realPath = path;
+        _temporaryFile = deleteOnClose ? path : null;
+        FilePath = displayPath ?? path;
         CanShowImage = ImageExtensions.Contains(Path.GetExtension(path));
         Mode = CanShowImage ? ListerMode.Image : ListerMode.Text;
         IsOpen = true;
@@ -127,6 +139,13 @@ public sealed partial class ListerViewModel : ViewModelBase
         IsOpen = false;
         _source?.Dispose();
         _source = null;
+        if (_temporaryFile is not null)
+        {
+            ZipArchiveService.DeleteTemporaryFile(_temporaryFile);
+            _temporaryFile = null;
+        }
+
+        _realPath = null;
         _pager = null;
         Image?.Dispose();
         Image = null;
@@ -285,7 +304,7 @@ public sealed partial class ListerViewModel : ViewModelBase
         try
         {
             var bitmap = await Task.Run(() => new Bitmap(path));
-            if (IsOpen && FilePath == path)
+            if (IsOpen && _realPath == path)
             {
                 Image = bitmap;
             }
@@ -296,7 +315,7 @@ public sealed partial class ListerViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            if (IsOpen && FilePath == path)
+            if (IsOpen && _realPath == path)
             {
                 ImageMessage = $"Cannot display image: {ex.Message}";
             }

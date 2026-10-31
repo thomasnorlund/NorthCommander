@@ -81,7 +81,7 @@ internal static class FileTransferEngine
     /// Where a single file should go given that <paramref name="destination"/> may exist:
     /// null when the user skips it.
     /// </summary>
-    public static async Task<FileTarget?> ResolveFileTargetAsync(string source, string destination, FileOperationContext context)
+    public static async Task<FileTarget?> ResolveFileTargetAsync(string source, string destination, FileOperationContext context, FileStamp? sourceInfo = null)
     {
         if (Directory.Exists(destination))
         {
@@ -93,7 +93,7 @@ internal static class FileTransferEngine
             return new FileTarget(destination, Overwrite: false);
         }
 
-        return await context.ResolveConflictAsync(source, destination).ConfigureAwait(false) switch
+        return await context.ResolveConflictAsync(source, destination, sourceInfo).ConfigureAwait(false) switch
         {
             FileConflictResolution.Overwrite => new FileTarget(destination, Overwrite: true),
             FileConflictResolution.Rename => new FileTarget(FileTransferPaths.GetUniquePath(destination), Overwrite: false),
@@ -134,6 +134,48 @@ internal static class FileTransferEngine
                 File.SetAttributes(writePath, File.GetAttributes(source));
             }
 
+            if (overwrite)
+            {
+                ClearReadOnly(destination);
+                File.Move(writePath, destination, overwrite: true);
+            }
+        }
+        catch
+        {
+            if (created)
+            {
+                TryDeleteFile(writePath);
+            }
+
+            throw;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    /// <summary>Writes <paramref name="input"/> (e.g. a ZIP entry) to <paramref name="destination"/>, like <see cref="CopyFileAsync"/>.</summary>
+    public static async Task WriteStreamAsync(Stream input, string destination, bool overwrite, DateTime lastWriteTimeUtc, FileOperationContext context)
+    {
+        var writePath = overwrite ? GetTemporaryPath(destination) : destination;
+        var created = false;
+        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+        try
+        {
+            await using (var output = new FileStream(writePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 0, FileOptions.Asynchronous))
+            {
+                created = true;
+                int read;
+                while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), context.CancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, read), context.CancellationToken).ConfigureAwait(false);
+                    context.ReportBytesTransferred(read);
+                    await context.CheckpointAsync().ConfigureAwait(false);
+                }
+            }
+
+            File.SetLastWriteTimeUtc(writePath, lastWriteTimeUtc);
             if (overwrite)
             {
                 ClearReadOnly(destination);

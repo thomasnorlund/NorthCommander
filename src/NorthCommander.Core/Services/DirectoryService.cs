@@ -1,3 +1,4 @@
+using NorthCommander.Core.Archives;
 using NorthCommander.Core.Models;
 
 namespace NorthCommander.Core.Services;
@@ -23,6 +24,12 @@ public sealed class DirectoryService : IDirectoryService
 
     private static DirectoryListing ReadDirectory(string path, CancellationToken cancellationToken)
     {
+        // "C:\data\backup.zip\docs" is a folder inside an archive.
+        if (ZipArchiveService.TryParse(path, out var archivePath, out var innerPath))
+        {
+            return ZipArchiveService.ReadListing(archivePath, innerPath, cancellationToken);
+        }
+
         var directory = new DirectoryInfo(Path.GetFullPath(path));
         if (!directory.Exists)
         {
@@ -106,7 +113,7 @@ public sealed class DirectoryService : IDirectoryService
             : (fileName[..dot], fileName[(dot + 1)..]);
     }
 
-    private sealed class NameComparer : IComparer<FileSystemEntry>
+    internal sealed class NameComparer : IComparer<FileSystemEntry>
     {
         public static readonly NameComparer Instance = new();
 

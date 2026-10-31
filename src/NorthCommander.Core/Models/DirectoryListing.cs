@@ -8,4 +8,5 @@ public sealed record DirectoryListing(
     IReadOnlyList<FileSystemEntry> Entries,
     int DirectoryCount,
     int FileCount,
-    long TotalFileSize);
+    long TotalFileSize,
+    bool IsArchive = false);

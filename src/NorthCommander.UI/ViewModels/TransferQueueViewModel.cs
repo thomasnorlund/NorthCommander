@@ -103,7 +103,13 @@ public sealed partial class TransferQueueViewModel : ViewModelBase
         IsPaused = tasks.All(t => t.Status == FileTransferStatus.Paused);
         ProgressPercentage = current.ProgressPercentage;
 
-        var verb = current.TaskType == FileTransferType.Move ? "Moving" : "Copying";
+        var verb = current.TaskType switch
+        {
+            FileTransferType.Move => "Moving",
+            FileTransferType.Extract => "Extracting",
+            FileTransferType.Pack => "Packing",
+            _ => "Copying",
+        };
         var state = current.PendingConflict is not null ? "Waiting for your decision: " : current.Status switch
         {
             FileTransferStatus.Paused => "Paused: ",

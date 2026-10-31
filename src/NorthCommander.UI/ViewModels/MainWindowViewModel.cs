@@ -1,3 +1,4 @@
+using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
 using NorthCommander.Core.Transfers;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -90,14 +91,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>F3: opens the Lister for the file under the cursor.</summary>
     [RelayCommand]
-    private void View()
+    private async Task ViewAsync()
     {
         if (IsModalOpen || ActivePanel.SelectedTab is not { SelectedItem: { IsDirectory: false, IsParentLink: false } item } tab)
         {
             return;
         }
 
-        if (Lister.Open(item.FullPath) is { } error)
+        var path = item.FullPath;
+        var isTemporary = false;
+        if (tab.IsInArchive)
+        {
+            // Files inside a ZIP are extracted to a temporary file that the Lister deletes on close.
+            try
+            {
+                path = await ZipArchiveService.ExtractToTempAsync(item.FullPath);
+                isTemporary = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                tab.ErrorMessage = $"Cannot extract '{Path.GetFileName(item.FullPath)}': {ex.Message}";
+                return;
+            }
+        }
+
+        if (Lister.Open(path, item.FullPath, isTemporary) is { } error)
         {
             tab.ErrorMessage = $"Cannot view '{Path.GetFileName(item.FullPath)}': {error}";
         }
@@ -114,7 +132,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         var tab = ActivePanel.SelectedTab;
         var paths = tab.GetSelectedPaths();
-        if (paths.Count == 0)
+        if (paths.Count == 0 || RejectInArchive(tab, "Multi-rename"))
         {
             return;
         }
@@ -158,7 +176,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public void ShowDeleteDialog(TabViewModel tab, IReadOnlyList<string> paths)
     {
-        if (IsModalOpen || paths.Count == 0)
+        if (IsModalOpen || paths.Count == 0 || RejectInArchive(tab, "Delete"))
         {
             return;
         }
@@ -173,7 +191,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public void ShowRenameDialog(TabViewModel tab, string path)
     {
-        if (IsModalOpen)
+        if (IsModalOpen || RejectInArchive(tab, "Rename"))
         {
             return;
         }
@@ -229,6 +247,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
+            var targetInArchive = ZipArchiveService.TryParse(target, out var targetArchive, out _);
+            if (panel.IsInArchive || targetInArchive)
+            {
+                return EnqueueArchiveTransfers(panel, type, sources, target, targetInArchive ? targetArchive : null);
+            }
+
             var plan = new List<(string Source, string Destination)>(sources.Count);
             foreach (var source in sources)
             {
@@ -257,6 +281,59 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>F5 out of a ZIP extracts, F5 into a ZIP packs; both run in the background queue.</summary>
+    private string? EnqueueArchiveTransfers(TabViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target, string? targetArchive)
+    {
+        if (panel.IsInArchive && targetArchive is not null)
+        {
+            return "Copying from one ZIP archive into another is not supported yet.";
+        }
+
+        if (type == FileTransferType.Move)
+        {
+            return "Move is not supported for ZIP archives yet - use Copy (F5).";
+        }
+
+        var targetPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(target.Trim()));
+        if (targetArchive is null && !Directory.Exists(targetPath))
+        {
+            return $"Target folder not found: {targetPath}";
+        }
+
+        foreach (var source in sources)
+        {
+            if (targetArchive is not null && (PathsEqual(source, targetArchive) || targetArchive.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.Ordinal)))
+            {
+                return "Cannot add an archive (or a folder containing it) to itself.";
+            }
+        }
+
+        var operation = panel.IsInArchive ? FileTransferType.Extract : FileTransferType.Pack;
+        var batch = new FileTransferBatch();
+        foreach (var source in sources)
+        {
+            var destination = Path.Combine(targetPath, Path.GetFileName(Path.TrimEndingDirectorySeparator(source)));
+            Transfers.Enqueue(new FileTransferTask(operation, source, destination, batch));
+        }
+
+        panel.ClearMarks();
+        return null;
+    }
+
+    private static bool PathsEqual(string first, string second) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(first), Path.TrimEndingDirectorySeparator(second), StringComparison.Ordinal);
+
+    private static bool RejectInArchive(TabViewModel tab, string action)
+    {
+        if (!tab.IsInArchive)
+        {
+            return false;
+        }
+
+        tab.ErrorMessage = $"{action} is not supported inside ZIP archives yet.";
+        return true;
+    }
+
     private void OnDialogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TransferDialogViewModel.IsOpen) or nameof(ConflictDialogViewModel.IsOpen) or nameof(PromptDialogViewModel.IsOpen))
@@ -282,7 +359,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (task.Status == FileTransferStatus.Failed)
         {
-            var verb = task.TaskType == FileTransferType.Move ? "Move" : "Copy";
+            var verb = task.TaskType switch
+            {
+                FileTransferType.Move => "Move",
+                FileTransferType.Extract => "Extraction",
+                FileTransferType.Pack => "Packing",
+                _ => "Copy",
+            };
             ActivePanel.SelectedTab.ErrorMessage = $"{verb} of '{task.DisplayName}' failed: {task.ErrorMessage}";
         }
     }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NorthCommander.Core.Archives;
 using NorthCommander.Core.Models;
 using NorthCommander.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -35,6 +36,13 @@ public sealed partial class TabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
+    /// <summary>True while the tab shows a folder inside a ZIP archive.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayPath))]
+    public partial bool IsInArchive { get; private set; }
+
+    public string DisplayPath => IsInArchive ? $"[ZIP] {CurrentPath}" : CurrentPath;
+
     /// <summary>False for the last tab of a panel.</summary>
     [ObservableProperty]
     public partial bool CanClose { get; set; }
@@ -55,7 +63,7 @@ public sealed partial class TabViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Header))]
+    [NotifyPropertyChangedFor(nameof(Header), nameof(DisplayPath))]
     public partial string CurrentPath { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -209,9 +217,29 @@ public sealed partial class TabViewModel : ViewModelBase
         {
             await NavigateAsync(item.FullPath);
         }
+        else if (IsInArchive)
+        {
+            await OpenArchivedFileAsync(item.FullPath);
+        }
+        else if (item.IsArchive)
+        {
+            await NavigateAsync(item.FullPath);
+        }
         else
         {
             OpenWithShell(item.FullPath);
+        }
+    }
+
+    private async Task OpenArchivedFileAsync(string path)
+    {
+        try
+        {
+            OpenWithShell(await ZipArchiveService.ExtractToTempAsync(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ErrorMessage = $"Cannot extract '{Path.GetFileName(path)}': {ex.Message}";
         }
     }
 
@@ -263,6 +291,7 @@ public sealed partial class TabViewModel : ViewModelBase
         }
 
         ErrorMessage = null;
+        IsInArchive = listing.IsArchive;
         CurrentPath = listing.Path;
         Items = items;
         SelectedItem = FindItem(items, pathToSelect) ?? items.FirstOrDefault();

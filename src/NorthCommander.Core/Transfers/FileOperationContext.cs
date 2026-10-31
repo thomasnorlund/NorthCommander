@@ -36,7 +36,11 @@ public sealed class FileOperationContext
     /// <see cref="FileConflictResolution.Overwrite"/>, <see cref="FileConflictResolution.Skip"/> or
     /// <see cref="FileConflictResolution.Rename"/>. Without a resolver the transfer fails (never overwrites).
     /// </summary>
-    public async Task<FileConflictResolution> ResolveConflictAsync(string sourcePath, string destinationPath)
+    public async Task<FileConflictResolution> ResolveConflictAsync(
+        string sourcePath,
+        string destinationPath,
+        FileStamp? sourceInfo = null,
+        FileStamp? destinationInfo = null)
     {
         var batch = _task.Batch;
         await batch.ConflictGate.WaitAsync(CancellationToken).ConfigureAwait(false);
@@ -54,7 +58,7 @@ public sealed class FileOperationContext
             }
 
             FileConflictResolution choice;
-            _task.PendingConflict = new FileConflict(_task, sourcePath, destinationPath);
+            _task.PendingConflict = new FileConflict(_task, sourcePath, destinationPath, sourceInfo, destinationInfo);
             _task.NotifyChanged();
             try
             {

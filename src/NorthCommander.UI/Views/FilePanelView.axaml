@@ -20,7 +20,7 @@
         <DockPanel>
             <!-- Current path -->
             <Border x:Name="PathHeader" DockPanel.Dock="Top" Padding="8,5">
-                <TextBlock Text="{Binding SelectedTab.CurrentPath}"
+                <TextBlock Text="{Binding SelectedTab.DisplayPath}"
                            FontWeight="SemiBold"
                            TextTrimming="PrefixCharacterEllipsis" />
             </Border>
@@ -134,7 +134,8 @@
                     <DataTemplate x:DataType="vm:FileItemViewModel">
                         <Grid ColumnDefinitions="*,70,110,140"
                               Opacity="{Binding Opacity}"
-                              Classes.marked="{Binding IsMarked}">
+                              Classes.marked="{Binding IsMarked}"
+                              Classes.archive="{Binding IsArchive}">
                             <TextBlock Grid.Column="0" Classes="cell" Text="{Binding DisplayName}" />
                             <TextBlock Grid.Column="1" Classes="cell" Text="{Binding Extension}" />
                             <TextBlock Grid.Column="2" Classes="cell" Text="{Binding SizeText}" HorizontalAlignment="Right" />

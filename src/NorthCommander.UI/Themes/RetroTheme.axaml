@@ -25,6 +25,7 @@
             <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#000080" />
             <SolidColorBrush x:Key="ErrorBrush" Color="#FF5555" />
             <SolidColorBrush x:Key="SuccessBrush" Color="#55FF55" />
+            <SolidColorBrush x:Key="ArchiveBrush" Color="#FF55FF" />
             <SolidColorBrush x:Key="OverlayBackdropBrush" Color="#88000000" />
             <FontFamily x:Key="RetroFontFamily">Cascadia Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
         </ResourceDictionary>
@@ -141,6 +142,11 @@
     </Style>
     <Style Selector="Border#PanelFrame.active ListBox#FileList ListBoxItem:selected TextBlock.cell">
         <Setter Property="Foreground" Value="{StaticResource CursorForegroundBrush}" />
+    </Style>
+
+    <!-- ZIP archives (Enter opens them like folders) -->
+    <Style Selector="Border#PanelFrame Grid.archive TextBlock.cell">
+        <Setter Property="Foreground" Value="{StaticResource ArchiveBrush}" />
     </Style>
 
     <!-- Marked (Insert/Space/right-drag) items: yellow, also under the cursor -->

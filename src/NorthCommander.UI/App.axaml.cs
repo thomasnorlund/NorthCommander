@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
 using NorthCommander.Core.Transfers;
 using NorthCommander.UI.ViewModels;
@@ -44,6 +45,8 @@ public partial class App : Application
 
         services.AddSingleton<IFileOperation, CopyFileOperation>();
         services.AddSingleton<IFileOperation, MoveFileOperation>();
+        services.AddSingleton<IFileOperation, ExtractFromArchiveOperation>();
+        services.AddSingleton<IFileOperation, AddToArchiveOperation>();
         services.AddSingleton(new BackgroundTransferQueueOptions { MaxParallelTransfers = 1 });
         services.AddSingleton<ConflictDialogViewModel>();
         services.AddSingleton<IFileConflictResolver>(sp => sp.GetRequiredService<ConflictDialogViewModel>());
