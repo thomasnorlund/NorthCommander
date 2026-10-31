@@ -14,6 +14,7 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding OpenSyncDirectoriesCommand}" />
         <KeyBinding Gesture="Ctrl+M" Command="{Binding MultiRenameFilesCommand}" />
         <KeyBinding Gesture="F3" Command="{Binding ViewCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
@@ -48,6 +49,7 @@
                     <TextBlock Text="Shift+F6  Rename" />
                     <TextBlock Text="F8  Delete" />
                     <TextBlock Text="Ctrl+M  Multi-rename" />
+                    <TextBlock Text="Ctrl+Shift+S  Sync dirs" />
                     <TextBlock Text="Ctrl+R  Refresh" />
                     <TextBlock Text="Ctrl+T/W  New/close tab" />
                     <TextBlock Text="Ctrl+Tab  Next tab" />
@@ -76,6 +78,9 @@
             <views:TransferDialogView x:Name="TransferDialogView"
                                       DataContext="{Binding TransferDialog}"
                                       IsVisible="{Binding IsOpen}" />
+            <views:SyncDirectoriesView x:Name="SyncDirectoriesView"
+                                       DataContext="{Binding SyncDirectories}"
+                                       IsVisible="{Binding IsOpen}" />
             <views:MultiRenameView x:Name="MultiRenameView"
                                    DataContext="{Binding MultiRename}"
                                    IsVisible="{Binding IsOpen}" />

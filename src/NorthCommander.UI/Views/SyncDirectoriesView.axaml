@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:NorthCommander.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="NorthCommander.UI.Views.SyncDirectoriesView"
+             x:DataType="vm:SyncDirectoriesViewModel">
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding CompareCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+    </UserControl.KeyBindings>
+
+    <Border Background="{StaticResource OverlayBackdropBrush}">
+        <Border x:Name="SyncFrame"
+                Margin="40,30"
+                MaxWidth="1400"
+                Background="{DynamicResource DialogBackgroundBrush}"
+                BorderBrush="{StaticResource ActivePanelBrush}"
+                BorderThickness="2"
+                CornerRadius="4"
+                BoxShadow="0 8 32 0 #60000000">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="{StaticResource ActivePanelBrush}" Padding="14,6">
+                    <TextBlock Text="Synchronize Directories (Ctrl+Shift+S)" FontWeight="SemiBold" Foreground="{StaticResource ActivePanelForegroundBrush}" />
+                </Border>
+
+                <Grid DockPanel.Dock="Top" Margin="14,12,14,6" ColumnDefinitions="*,16,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Left folder:" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Right folder:" />
+                    <TextBox Grid.Row="1" Grid.Column="0" x:Name="LeftPathBox" Text="{Binding LeftPath}" />
+                    <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding RightPath}" />
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="20">
+                        <CheckBox Content="Subdirectories" IsChecked="{Binding IncludeSubdirectories}" />
+                        <CheckBox Content="2-second time tolerance (FAT32 / ZIP)" IsChecked="{Binding UseTimeTolerance}" />
+                        <CheckBox Content="Hide identical" IsChecked="{Binding HideIdentical}" />
+                        <Button x:Name="CompareButton" Content="Compare" Classes="accent" MinWidth="100" HorizontalContentAlignment="Center" Command="{Binding CompareCommand}" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid DockPanel.Dock="Bottom" Margin="14,8,14,12" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   Foreground="{StaticResource ErrorBrush}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Classes="summary" Text="{Binding Summary}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Synchronize" Classes="accent" MinWidth="120" HorizontalContentAlignment="Center" Command="{Binding SynchronizeCommand}" />
+                    <Button Grid.Column="2" Content="Close" MinWidth="100" HorizontalContentAlignment="Center" Command="{Binding CloseCommand}" />
+                </Grid>
+
+                <Border x:Name="SyncGridFrame" Margin="14,4,14,0">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="3*,100,50,100,3*" Margin="12,4,12,2">
+                            <TextBlock Grid.Column="0" Classes="columnHeader" Text="Left File Name" />
+                            <TextBlock Grid.Column="1" Classes="columnHeader" Text="Left Size" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="2" Classes="columnHeader" Text="Dir" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="3" Classes="columnHeader" Text="Right Size" />
+                            <TextBlock Grid.Column="4" Classes="columnHeader" Text="Right File Name" />
+                        </Grid>
+                        <ListBox x:Name="SyncGrid" ItemsSource="{Binding Items}" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SyncItemViewModel">
+                                    <Grid ColumnDefinitions="3*,100,50,100,3*"
+                                          ToolTip.Tip="{Binding ToolTip}"
+                                          Classes.copy="{Binding IsCopy}"
+                                          Classes.conflict="{Binding IsConflict}"
+                                          Classes.equal="{Binding IsEqual}">
+                                        <TextBlock Grid.Column="0" Classes="cell" Text="{Binding LeftName}" />
+                                        <TextBlock Grid.Column="1" Classes="cell" Text="{Binding LeftSize}" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Column="2" Classes="cell arrow" Text="{Binding Arrow}" HorizontalAlignment="Center" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="3" Classes="cell" Text="{Binding RightSize}" />
+                                        <TextBlock Grid.Column="4" Classes="cell" Text="{Binding RightName}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+    </Border>
+</UserControl>

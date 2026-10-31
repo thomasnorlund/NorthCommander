@@ -10,6 +10,16 @@ public sealed class FileTransferBatch
     private int _canceled;
 
     /// <summary>Overwrite or Skip once the user chose "... All"; null while every conflict is asked.</summary>
+    public FileTransferBatch()
+    {
+    }
+
+    /// <param name="presetResolution">Answer used for every conflict without asking (e.g. Overwrite for directory sync).</param>
+    public FileTransferBatch(FileConflictResolution presetResolution)
+    {
+        StickyResolution = presetResolution;
+    }
+
     public FileConflictResolution? StickyResolution
     {
         get => Volatile.Read(ref _stickyResolution) is var value and >= 0 ? (FileConflictResolution)value : null;

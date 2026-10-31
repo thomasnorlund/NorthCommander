@@ -245,6 +245,44 @@
         <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
     </Style>
 
+    <!-- Directory synchronization -->
+    <Style Selector="Border#SyncFrame TextBlock.label">
+        <Setter Property="Foreground" Value="{StaticResource ColumnHeaderBrush}" />
+    </Style>
+    <Style Selector="Border#SyncFrame TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+    </Style>
+    <Style Selector="Border#SyncFrame TextBlock.summary">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource ActivePanelBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame TextBlock.columnHeader">
+        <Setter Property="Foreground" Value="{StaticResource ColumnHeaderBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ListBox#SyncGrid ListBoxItem">
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame Grid.copy TextBlock.arrow">
+        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame Grid.conflict TextBlock.cell">
+        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+    </Style>
+    <Style Selector="Border#SyncGridFrame Grid.equal TextBlock.cell">
+        <Setter Property="Foreground" Value="{StaticResource InactivePanelBrush}" />
+    </Style>
+
     <!-- Dialogs -->
     <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter, Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource ErrorBrush}" />

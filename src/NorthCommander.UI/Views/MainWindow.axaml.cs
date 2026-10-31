@@ -28,7 +28,9 @@ public partial class MainWindow : Window
         _viewModel?.PromptDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.Lister.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.MultiRename.PropertyChanged -= OnDialogPropertyChanged;
+        _viewModel?.SyncDirectories.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel = DataContext as MainWindowViewModel;
+        _viewModel?.SyncDirectories.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.MultiRename.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.Lister.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.PromptDialog.PropertyChanged += OnDialogPropertyChanged;
@@ -83,6 +85,10 @@ public partial class MainWindow : Window
             else if (_viewModel.PromptDialog.IsOpen)
             {
                 PromptDialogView.FocusInput();
+            }
+            else if (_viewModel.SyncDirectories.IsOpen)
+            {
+                SyncDirectoriesView.FocusCompare();
             }
             else if (_viewModel.MultiRename.IsOpen)
             {

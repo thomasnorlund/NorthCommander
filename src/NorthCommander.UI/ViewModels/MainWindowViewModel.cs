@@ -1,5 +1,6 @@
 using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
+using NorthCommander.Core.Sync;
 using NorthCommander.Core.Transfers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,6 +25,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         PromptDialog.PropertyChanged += OnDialogPropertyChanged;
         Lister.PropertyChanged += OnDialogPropertyChanged;
         MultiRename.PropertyChanged += OnDialogPropertyChanged;
+        SyncDirectories.PropertyChanged += OnDialogPropertyChanged;
 
         LeftPanel.ActivationRequested += OnPanelActivationRequested;
         RightPanel.ActivationRequested += OnPanelActivationRequested;
@@ -48,8 +50,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public MultiRenameViewModel MultiRename { get; } = new();
 
+    public SyncDirectoriesViewModel SyncDirectories { get; } = new();
+
     /// <summary>True while an overlay dialog owns the keyboard; the panels are disabled.</summary>
-    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen || Lister.IsOpen || MultiRename.IsOpen;
+    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen || Lister.IsOpen || MultiRename.IsOpen || SyncDirectories.IsOpen;
 
     [ObservableProperty]
     public partial FilePanelViewModel ActivePanel { get; set; }
@@ -145,6 +149,54 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 _ = RefreshTabsShowingAsync(folders);
             }
         });
+    }
+
+    /// <summary>Ctrl+Shift+S: compare/synchronize the folders of the left and right panel.</summary>
+    [RelayCommand]
+    private void OpenSyncDirectories()
+    {
+        if (!IsModalOpen)
+        {
+            SyncDirectories.Open(LeftPanel.SelectedTab.CurrentPath, RightPanel.SelectedTab.CurrentPath, EnqueueSync);
+        }
+    }
+
+    /// <summary>Queues one copy per arrow; existing targets are overwritten (the newer file wins).</summary>
+    private string? EnqueueSync(IReadOnlyList<SyncItem> items, string leftRoot, string rightRoot)
+    {
+        var leftIsArchive = ZipArchiveService.IsArchivePath(leftRoot);
+        var rightIsArchive = ZipArchiveService.IsArchivePath(rightRoot);
+        var copies = items.Where(i => i.Direction is SyncDirection.LeftToRight or SyncDirection.RightToLeft).ToList();
+        if (leftIsArchive && rightIsArchive && copies.Count > 0)
+        {
+            return "Synchronizing two ZIP archives with each other is not supported yet.";
+        }
+
+        try
+        {
+            var batch = new FileTransferBatch(FileConflictResolution.Overwrite);
+            foreach (var item in copies)
+            {
+                var toRight = item.Direction == SyncDirection.LeftToRight;
+                var source = (toRight ? item.Left : item.Right)!.FullPath;
+                var destination = DirectoryComparer.PathFor(toRight ? rightRoot : leftRoot, item.RelativePath);
+                var sourceIsArchive = toRight ? leftIsArchive : rightIsArchive;
+                var destinationIsArchive = toRight ? rightIsArchive : leftIsArchive;
+                var type = sourceIsArchive ? FileTransferType.Extract : destinationIsArchive ? FileTransferType.Pack : FileTransferType.Copy;
+                if (!destinationIsArchive)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                }
+
+                Transfers.Enqueue(new FileTransferTask(type, source, destination, batch));
+            }
+
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return ex.Message;
+        }
     }
 
     [RelayCommand]

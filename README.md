@@ -35,6 +35,7 @@ dotnet test
 | `F8` / `Delete` | Permanently delete marked items (or the item under the cursor) after confirmation |
 | `Shift+F10` / Menu key | Context menu of the item under the cursor |
 | `Ctrl+M` | Multi-rename marked items (or the item under the cursor) with TC masks and live preview |
+| `Ctrl+Shift+S` | Synchronize directories of the left and right panel (compare, then queue copies) |
 | `Ctrl+T` | New folder tab in the active panel (same folder) |
 | `Ctrl+W` | Close the current tab (the last tab of a panel stays open); middle-click also closes |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab of the active panel |
@@ -82,6 +83,10 @@ NorthCommander.sln
   F5 out of an archive extracts in the background queue, and F5 into an archive (the other panel shows a
   folder inside a ZIP) adds files/folders. The archive is rebuilt into a temp file and swapped in only on
   success. Move, rename and delete inside archives are not supported yet.
+- Sync dirs (Ctrl+Shift+S): compares both panels' folders (ZIP folders too) by relative path, size and
+  modification time (optional 2 s tolerance). `->`/`<-` = newer or missing on the other side, `!=` = same time but
+  different size (skipped), `=` = identical. Synchronize queues the copies (overwriting the older file) in the
+  background queue, extracting from or packing into ZIPs as needed.
 - Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
   (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:
