@@ -30,6 +30,9 @@ dotnet test
 | `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red |
 | `F5` | Copy marked items (or the item under the cursor) to the other panel (confirm target in overlay) |
 | `F6` | Move/rename marked items (or the item under the cursor) to the other panel |
+| `Shift+F6` / `F2` | Rename the item under the cursor |
+| `F8` / `Delete` | Permanently delete marked items (or the item under the cursor) after confirmation |
+| `Shift+F10` / Menu key | Context menu of the item under the cursor |
 | `Ctrl+T` | New folder tab in the active panel (same folder) |
 | `Ctrl+W` | Close the current tab (the last tab of a panel stays open); middle-click also closes |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab of the active panel |
@@ -59,6 +62,12 @@ CommanderTom.sln
   resumed and canceled individually or all at once, whether queued or running. Copies stream through a
   pooled 1 MiB buffer, never overwrite existing files, and delete partial output on failure/cancel.
   Moves try a same-volume rename first and fall back to copy + delete.
+- Look: Norton Commander colours (blue `#0000A8` panels, white text, yellow `#FFFF55` marked items,
+  cyan `#55FFFF` focus, grey `#AAAAAA` inactive). All colours live in `src/CommanderTom.UI/Themes/RetroTheme.axaml`.
+- Mouse: double-click opens folders/files; right-drag marks a range of rows (Total Commander style);
+  a short right-click opens the context menu (Open, Copy, Move, Rename, Delete, Copy full path,
+  Show in Explorer, Properties on Windows). Left-drag items onto the other panel (or onto a folder) to open
+  the Copy dialog; hold `Shift` while dropping for Move.
 - Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
   (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:

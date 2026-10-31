@@ -1,32 +1,10 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="CommanderTom.UI.App"
-             RequestedThemeVariant="Default">
-
-    <Application.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#FFFFFF" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="DialogBackgroundBrush" Color="#2B2B2B" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
-            <SolidColorBrush x:Key="ActivePanelBrush" Color="#1E6FD9" />
-            <SolidColorBrush x:Key="ActivePanelForegroundBrush" Color="White" />
-            <SolidColorBrush x:Key="InactivePanelBrush" Color="#55808080" />
-            <SolidColorBrush x:Key="InactiveHeaderBrush" Color="#22808080" />
-            <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#40808080" />
-            <SolidColorBrush x:Key="ErrorBrush" Color="#D93025" />
-            <!-- Total Commander style marking: red text, yellow when under the active cursor -->
-            <SolidColorBrush x:Key="MarkedItemBrush" Color="#E53935" />
-            <SolidColorBrush x:Key="MarkedCursorItemBrush" Color="#FFEB3B" />
-            <SolidColorBrush x:Key="OverlayBackdropBrush" Color="#66000000" />
-        </ResourceDictionary>
-    </Application.Resources>
+             RequestedThemeVariant="Dark">
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://CommanderTom/Themes/RetroTheme.axaml" />
     </Application.Styles>
 </Application>

@@ -110,6 +110,31 @@ public sealed partial class TabViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Items a mouse action on <paramref name="item"/> applies to: all marked items when it is marked
+    /// (Total Commander behavior), otherwise just the item itself.
+    /// </summary>
+    public IReadOnlyList<string> GetContextPaths(FileItemViewModel item)
+    {
+        if (item.IsParentLink)
+        {
+            return [];
+        }
+
+        return item.IsMarked ? Items.Where(i => i.IsMarked).Select(i => i.FullPath).ToList() : [item.FullPath];
+    }
+
+    public void SetMark(FileItemViewModel item, bool isMarked)
+    {
+        if (item.IsParentLink || item.IsMarked == isMarked)
+        {
+            return;
+        }
+
+        item.IsMarked = isMarked;
+        UpdateStatusText();
+    }
+
     public void ClearMarks()
     {
         foreach (var item in Items)

@@ -25,7 +25,9 @@ public partial class MainWindow : Window
 
         _viewModel?.TransferDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.ConflictDialog.PropertyChanged -= OnDialogPropertyChanged;
+        _viewModel?.PromptDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel = DataContext as MainWindowViewModel;
+        _viewModel?.PromptDialog.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.TransferDialog.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
     }
@@ -73,6 +75,10 @@ public partial class MainWindow : Window
             if (_viewModel.ConflictDialog.IsOpen)
             {
                 ConflictDialogView.FocusDefaultButton();
+            }
+            else if (_viewModel.PromptDialog.IsOpen)
+            {
+                PromptDialogView.FocusInput();
             }
             else if (_viewModel.TransferDialog.IsOpen)
             {

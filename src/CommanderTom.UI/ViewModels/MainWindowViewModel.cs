@@ -1,3 +1,4 @@
+using CommanderTom.Core.Services;
 using CommanderTom.Core.Transfers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,6 +20,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         TransferDialog.PropertyChanged += OnDialogPropertyChanged;
         ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
+        PromptDialog.PropertyChanged += OnDialogPropertyChanged;
 
         LeftPanel.ActivationRequested += OnPanelActivationRequested;
         RightPanel.ActivationRequested += OnPanelActivationRequested;
@@ -37,8 +39,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public ConflictDialogViewModel ConflictDialog { get; }
 
+    public PromptDialogViewModel PromptDialog { get; } = new();
+
     /// <summary>True while an overlay dialog owns the keyboard; the panels are disabled.</summary>
-    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen;
+    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen || PromptDialog.IsOpen;
 
     [ObservableProperty]
     public partial FilePanelViewModel ActivePanel { get; set; }
@@ -78,22 +82,101 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void OpenTransferDialog(FileTransferType type)
+    [RelayCommand]
+    private void Delete() => ShowDeleteDialog(ActivePanel.SelectedTab, ActivePanel.SelectedTab.GetSelectedPaths());
+
+    [RelayCommand]
+    private void Rename()
+    {
+        if (ActivePanel.SelectedTab is { SelectedItem: { IsParentLink: false } item } tab)
+        {
+            ShowRenameDialog(tab, item.FullPath);
+        }
+    }
+
+    /// <summary>Current folder of the panel opposite to <paramref name="panel"/> (default F5/F6 target).</summary>
+    public string GetOppositePath(FilePanelViewModel panel) =>
+        (ReferenceEquals(panel, LeftPanel) ? RightPanel : LeftPanel).SelectedTab.CurrentPath;
+
+    /// <summary>Opens the F5/F6 confirmation for <paramref name="sources"/> (keyboard, context menu, drag &amp; drop).</summary>
+    public void ShowTransferDialog(TabViewModel sourceTab, FileTransferType type, IReadOnlyList<string> sources, string target)
+    {
+        if (IsModalOpen || sources.Count == 0)
+        {
+            return;
+        }
+
+        TransferDialog.Open(type, sources, target, t => EnqueueTransfers(sourceTab, type, sources, t));
+    }
+
+    public void ShowDeleteDialog(TabViewModel tab, IReadOnlyList<string> paths)
+    {
+        if (IsModalOpen || paths.Count == 0)
+        {
+            return;
+        }
+
+        var what = paths.Count == 1 ? $"'{Path.GetFileName(Path.TrimEndingDirectorySeparator(paths[0]))}'" : $"{paths.Count} items";
+        PromptDialog.Open("Delete (F8)", $"Permanently delete {what}? This cannot be undone.", null, "Delete", isDanger: true, _input =>
+        {
+            _ = DeleteAsync(tab, paths);
+            return null;
+        });
+    }
+
+    public void ShowRenameDialog(TabViewModel tab, string path)
     {
         if (IsModalOpen)
         {
             return;
         }
 
-        var tab = ActivePanel.SelectedTab;
-        var sources = tab.GetSelectedPaths();
-        if (sources.Count == 0)
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+        PromptDialog.Open("Rename (Shift+F6)", $"Rename '{name}' to:", name, "Rename", isDanger: false, newName =>
         {
-            return;
+            try
+            {
+                var newPath = FileSystemOperations.Rename(path, newName);
+                _ = RefreshAfterRenameAsync(tab, newPath);
+                return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return ex.Message;
+            }
+        });
+    }
+
+    private async Task DeleteAsync(TabViewModel tab, IReadOnlyList<string> paths)
+    {
+        try
+        {
+            await FileSystemOperations.DeleteAsync(paths);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            tab.ErrorMessage = $"Delete failed: {ex.Message}";
         }
 
-        TransferDialog.Open(type, sources, InactivePanel.SelectedTab.CurrentPath, target => EnqueueTransfers(tab, type, sources, target));
+        await RefreshTabsShowingAsync(paths.Select(p => Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(p))).OfType<string>().ToList());
     }
+
+    private async Task RefreshAfterRenameAsync(TabViewModel tab, string newPath)
+    {
+        await tab.LoadAsync(tab.CurrentPath, pathToSelect: newPath);
+        if (Path.GetDirectoryName(newPath) is { } folder)
+        {
+            await RefreshTabsShowingAsync([folder], except: tab);
+        }
+    }
+
+    private Task RefreshTabsShowingAsync(IReadOnlyList<string> folders, TabViewModel? except = null) =>
+        Task.WhenAll(LeftPanel.Tabs.Concat(RightPanel.Tabs)
+            .Where(tab => !ReferenceEquals(tab, except) && folders.Any(tab.IsShowingDirectory))
+            .Select(tab => tab.RefreshAsync()));
+
+    private void OpenTransferDialog(FileTransferType type) =>
+        ShowTransferDialog(ActivePanel.SelectedTab, type, ActivePanel.SelectedTab.GetSelectedPaths(), InactivePanel.SelectedTab.CurrentPath);
 
     private string? EnqueueTransfers(TabViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target)
     {
@@ -129,7 +212,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void OnDialogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(TransferDialogViewModel.IsOpen) or nameof(ConflictDialogViewModel.IsOpen))
+        if (e.PropertyName is nameof(TransferDialogViewModel.IsOpen) or nameof(ConflictDialogViewModel.IsOpen) or nameof(PromptDialogViewModel.IsOpen))
         {
             OnPropertyChanged(nameof(IsModalOpen));
         }
@@ -148,10 +231,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             affected.Add(sourceDir);
         }
 
-        var refreshes = LeftPanel.Tabs.Concat(RightPanel.Tabs)
-            .Where(tab => affected.Exists(tab.IsShowingDirectory))
-            .Select(tab => tab.RefreshAsync());
-        await Task.WhenAll(refreshes);
+        await RefreshTabsShowingAsync(affected);
 
         if (task.Status == FileTransferStatus.Failed)
         {
