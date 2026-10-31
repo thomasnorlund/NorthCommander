@@ -7,6 +7,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Lite (framework-dependent) builds look for the .NET runtime in a "dotnet" folder next to the exe first,
+         so deps.ps1 can install it portably into the app folder. -->
+    <AppHostDotNetSearch>AppRelative;EnvironmentVariable;Global</AppHostDotNetSearch>
+    <AppHostRelativeDotNet>dotnet</AppHostRelativeDotNet>
   </PropertyGroup>
 
   <ItemGroup>

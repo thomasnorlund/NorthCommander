@@ -136,12 +136,22 @@ console window, and shows the output in the Lister. `cd` is handled by the panel
 `NorthCommander.config.json` next to `NorthCommander.exe` (written atomically via a temp file).
 The app never uses AppData or the registry. `install.ps1` only adds shortcuts and a user PATH
 entry; `uninstall.ps1` removes them again.
+Releases come as **Full** (self-contained, needs no .NET) and **Lite** (framework-dependent, needs the
+.NET 10 runtime). Lite's exe is built with `AppHostDotNetSearch=AppRelative;EnvironmentVariable;Global`
+and `AppHostRelativeDotNet=dotnet`, so it finds a runtime in a `dotnet` folder next to itself first: the
+runtime can live inside the portable app folder, or be installed system-wide.
+`deps.ps1` (started by `Check-Dependencies.cmd`) is the one place that knows the dependencies. It tells
+the folder kinds apart (`NorthCommander.package.json` marks Lite, a csproj marks a source clone), checks
+for the runtime or SDK where the exe and `dotnet` look for them, and installs missing parts only after
+asking: into the app folder or for the user with Microsoft's `dotnet-install.ps1` (no admin), or
+system-wide with winget.
 `Setup.cmd` starts `setup.ps1`, a Windows Forms wizard (Windows PowerShell 5.1, built into Windows) that
-checks requirements, installs a missing .NET 10 SDK with winget after asking, builds the exe when started
-from a source clone and then runs `install.ps1` in the chosen app folder.
-For releases, `src/NorthCommander.Setup` builds `NorthCommander-Setup-<tag>.exe`: a Windows Forms
-installer on .NET Framework 4.8 (part of Windows) with the zipped app embedded as a resource. It unpacks
-the app into the chosen folder and runs the same `install.ps1`.
+dot-sources `deps.ps1` for its requirement list and runs it to install missing parts, builds the exe when
+started from a source clone and then runs `install.ps1` in the chosen app folder.
+For releases, `src/NorthCommander.Setup` builds `NorthCommander-Setup-<tag>.exe` and
+`NorthCommander-Setup-Lite-<tag>.exe`: a Windows Forms installer on .NET Framework 4.8 (part of Windows)
+with the zipped app embedded as a resource. It unpacks the app into the chosen folder, runs `deps.ps1`
+for the Lite runtime if needed, and runs the same `install.ps1`.
 
 ### 2.11 Look and feel
 
@@ -157,8 +167,9 @@ dotnet run --project src/NorthCommander.UI
 ```
 
 - `.github/workflows/build.yml` builds and tests every push.
-- Pushing a tag like `v1.0.0` runs `.github/workflows/release.yml`, which publishes a self-contained
-  single-file `NorthCommander.exe` (win-x64) and attaches a zip to a GitHub release.
+- Pushing a tag like `v1.0.0` runs `.github/workflows/release.yml`, which publishes single-file
+  `NorthCommander.exe` builds (win-x64, Full and Lite) and attaches a portable zip and a setup exe of each
+  to a GitHub release.
 
 ## 4. How it was built with an AI co-pilot
 
@@ -186,6 +197,7 @@ them, and reported back. The git history shows each step as one commit.
 | 14 | 7z, RAR and TAR archives (read-only) | `Browse 7z, RAR and TAR` |
 | 15 | Folder size calculation | `Folder size calculation` |
 | 16 | Graphical setup wizard and NorthCommander-Setup.exe | `Setup wizard`, `Setup.exe` |
+| 17 | Lite variant and dependency checker (`deps.ps1`) | `Dependencies` |
 
 ### 4.2 What worked well
 

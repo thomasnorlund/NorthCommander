@@ -4,14 +4,14 @@
 
 .DESCRIPTION
     A small Windows Forms wizard that runs on the Windows PowerShell 5.1 built into Windows 10/11:
-      1. checks the requirements and lists what is missing,
-      2. installs missing parts with winget, but only after asking (Windows shows its own
-         permission prompt for installers that need it),
+      1. checks the requirements with deps.ps1 and lists what is missing,
+      2. installs missing parts, but only after asking: the .NET 10 SDK for a source clone,
+         the .NET 10 runtime for a Lite release (portably into the app folder or system-wide),
       3. from a source clone: builds a self-contained NorthCommander.exe into the chosen folder;
          from a release zip: uses the NorthCommander.exe next to this script (copied if you
          choose another folder),
       4. runs install.ps1 in the app folder for the Start Menu / Desktop shortcuts and PATH.
-    The installed app needs no .NET runtime and stays portable: everything lives in its folder.
+    The full release needs no .NET runtime. Either way the app stays portable: everything lives in its folder.
 
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -STA -File .\setup.ps1
@@ -33,14 +33,17 @@ Add-Type -AssemblyName System.Drawing
 
 $sourceRoot = $PSScriptRoot
 $projectPath = Join-Path $sourceRoot 'src\NorthCommander.UI\NorthCommander.UI.csproj'
-$isRelease = Test-Path -LiteralPath (Join-Path $sourceRoot 'NorthCommander.exe') -PathType Leaf
-$isSource = (-not $isRelease) -and (Test-Path -LiteralPath $projectPath -PathType Leaf)
-$requiredSdkMajor = 10
-$sdkWingetId = 'Microsoft.DotNet.SDK.10'
-$sdkDownloadUrl = 'https://dotnet.microsoft.com/download/dotnet/10.0'
-$supportFiles = @('install.ps1', 'uninstall.ps1', 'north.cmd', 'README.md', 'LICENSE')
-# winget exit codes that mean "already installed / nothing to update".
-$wingetOkCodes = @(0, -1978335189, -1978335135)
+$depsScript = Join-Path $sourceRoot 'deps.ps1'
+if (-not (Test-Path -LiteralPath $depsScript -PathType Leaf)) {
+    [void][System.Windows.Forms.MessageBox]::Show("deps.ps1 is missing next to setup.ps1 in`n$sourceRoot", 'NorthCommander Setup', 'OK', 'Error')
+    exit 1
+}
+. $depsScript
+$packageKind = (Get-NcPackage -Path $sourceRoot).Kind
+$isLite = $packageKind -eq 'Lite'
+$isRelease = $packageKind -in 'Full', 'Lite'
+$isSource = $packageKind -eq 'Source'
+$supportFiles = @('install.ps1', 'uninstall.ps1', 'north.cmd', 'deps.ps1', 'Check-Dependencies.cmd', 'README.md', 'LICENSE')
 $oemEncoding = [System.Text.Encoding]::GetEncoding([System.Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
 
 if (-not $isRelease -and -not $isSource) {
@@ -50,64 +53,15 @@ if (-not $isRelease -and -not $isSource) {
     exit 1
 }
 
-# ---------------------------------------------------------------- requirement checks
+# ---------------------------------------------------------------- requirement checks (deps.ps1)
 
-function Get-DotnetSdk {
-    <# Returns the dotnet.exe that has a .NET $requiredSdkMajor SDK, plus every SDK version seen. #>
-    $ErrorActionPreference = 'Continue'
-    $candidates = New-Object System.Collections.Generic.List[string]
-    $onPath = Get-Command dotnet.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($onPath) { $candidates.Add($onPath.Source) }
-    # A freshly installed SDK is not on this process's PATH yet.
-    if ($env:ProgramFiles) { $candidates.Add((Join-Path $env:ProgramFiles 'dotnet\dotnet.exe')) }
-
-    $all = New-Object System.Collections.Generic.List[string]
-    foreach ($dotnet in ($candidates | Select-Object -Unique)) {
-        if (-not (Test-Path -LiteralPath $dotnet -PathType Leaf)) { continue }
-        $match = $null
-        try { $lines = & $dotnet --list-sdks 2>$null } catch { $lines = @() }
-        foreach ($line in @($lines)) {
-            if ("$line" -match '^(\d+)\.\S+') {
-                if (-not $all.Contains($Matches[0])) { $all.Add($Matches[0]) }
-                if ([int]$Matches[1] -eq $requiredSdkMajor) { $match = $Matches[0] }
-            }
-        }
-        if ($match) {
-            return [pscustomobject]@{ Dotnet = $dotnet; Version = $match; All = @($all) }
-        }
-    }
-    return [pscustomobject]@{ Dotnet = $null; Version = $null; All = @($all) }
-}
-
-function Test-Winget {
-    [bool](Get-Command winget.exe -CommandType Application -ErrorAction SilentlyContinue)
-}
-
-$script:sdk = $null
+$script:status = $null
 
 function Show-Requirement {
     $requirements.Items.Clear()
-    $os = [Environment]::OSVersion.Version
-    $osOk = $os.Major -ge 10 -and [Environment]::Is64BitOperatingSystem
-    Add-RequirementRow -Name 'Windows 10/11, 64-bit' -Ok $osOk -Status $(if ($osOk) { "OK (build $($os.Build))" } else { 'Not supported' })
-
-    if ($isRelease) {
-        Add-RequirementRow -Name 'NorthCommander.exe (self-contained, no .NET needed)' -Ok $true -Status 'Found'
-        $installMissing.Enabled = $false
-        return
-    }
-
-    $script:sdk = Get-DotnetSdk
-    if ($script:sdk.Version) {
-        Add-RequirementRow -Name ".NET $requiredSdkMajor SDK (to build from source)" -Ok $true -Status "Found $($script:sdk.Version)"
-    }
-    else {
-        $found = if ($script:sdk.All.Count) { "Missing (found: $($script:sdk.All -join ', '))" } else { 'Missing' }
-        Add-RequirementRow -Name ".NET $requiredSdkMajor SDK (to build from source)" -Ok $false -Status $found
-    }
-    $hasWinget = Test-Winget
-    Add-RequirementRow -Name 'winget (to install missing parts)' -Ok $true -Status $(if ($hasWinget) { 'Found' } else { 'Not found (optional)' })
-    $installMissing.Enabled = -not $script:sdk.Version
+    $script:status = Get-NcStatus -Path $sourceRoot
+    foreach ($row in $script:status.Rows) { Add-RequirementRow -Name $row.Name -Ok $row.Ok -Status $row.Status }
+    $installMissing.Enabled = [bool]$script:status.Missing
 }
 
 function Add-RequirementRow([string]$Name, [bool]$Ok, [string]$Status) {
@@ -239,7 +193,7 @@ $title.SetBounds(16, 8, 620, 28)
 $header.Controls.Add($title)
 
 $subtitle = New-Object System.Windows.Forms.Label
-$subtitle.Text = if ($isRelease) { 'Release package: no dependencies needed. Choose where NorthCommander should live.' } else { 'Source code: setup checks the build tools, builds NorthCommander.exe and sets it up.' }
+$subtitle.Text = if ($isLite) { 'Lite release: needs the .NET 10 runtime, which setup can install for you.' } elseif ($isRelease) { 'Release package: no dependencies needed. Choose where NorthCommander should live.' } else { 'Source code: setup checks the build tools, builds NorthCommander.exe and sets it up.' }
 $subtitle.ForeColor = [System.Drawing.Color]::FromArgb(85, 255, 255)
 $subtitle.SetBounds(16, 38, 620, 20)
 $header.Controls.Add($subtitle)
@@ -363,25 +317,39 @@ $browse.Add_Click({
     })
 
 $installMissing.Add_Click({
-        if (-not (Test-Winget)) {
+        $component = $script:status.Missing
+        $major = $script:status.Major
+        if ($component -eq 'Runtime') {
             $answer = [System.Windows.Forms.MessageBox]::Show(
-                "winget (Microsoft's package manager) isn't available, so setup can't install the .NET $requiredSdkMajor SDK itself.`n`nOpen the download page? Install the SDK (x64), then click 'Check again'.",
+                "NorthCommander Lite needs the .NET $major runtime from Microsoft (download of about 30 MB).`n`n" +
+                "Yes: install it into the app folder (portable: it moves with the folder, no administrator rights).`n" +
+                "No: install it system-wide with winget (Windows asks for permission).",
+                'NorthCommander Setup', 'YesNoCancel', 'Question')
+            $chosenScope = switch ($answer) { 'Yes' { 'App' } 'No' { 'Machine' } default { '' } }
+        }
+        else {
+            $answer = [System.Windows.Forms.MessageBox]::Show(
+                "Building NorthCommander needs the .NET $major SDK from Microsoft (download of about 200 MB). Your other .NET versions stay installed.`n`n" +
+                "Yes: install it system-wide with winget (Windows asks for permission).`n" +
+                "No: install it for your user only (%LOCALAPPDATA%\Microsoft\dotnet, no administrator rights).",
+                'NorthCommander Setup', 'YesNoCancel', 'Question')
+            $chosenScope = switch ($answer) { 'Yes' { 'Machine' } 'No' { 'User' } default { '' } }
+        }
+        if (-not $chosenScope) { return }
+        if ($chosenScope -eq 'Machine' -and -not $script:status.Winget) {
+            $answer = [System.Windows.Forms.MessageBox]::Show(
+                "winget (Microsoft's package manager) isn't available, so setup can't install system-wide.`n`nOpen the .NET download page instead? Install it (x64), then click 'Check again'.",
                 'NorthCommander Setup', 'YesNo', 'Question')
-            if ($answer -eq 'Yes') { Start-Process $sdkDownloadUrl }
+            if ($answer -eq 'Yes') { Start-Process $NcDownloadUrl }
             return
         }
-        $answer = [System.Windows.Forms.MessageBox]::Show(
-            "Setup will install the .NET $requiredSdkMajor SDK from Microsoft using winget (download of roughly 200 MB). It is only needed to build NorthCommander; your other .NET versions stay installed.`n`nWindows will ask for permission, because the SDK installs into Program Files.`n`nInstall it now?",
-            'NorthCommander Setup', 'YesNo', 'Question')
-        if ($answer -ne 'Yes') { return }
 
+        $powershell = (Get-Process -Id $PID).Path
+        $depsArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$depsScript`" -Yes -Scope $chosenScope -Location `"$sourceRoot`""
+        $what = if ($component -eq 'Runtime') { "the .NET $major runtime" } else { "the .NET $major SDK" }
         $steps = @(
-            (Get-ProcessStep -Title "Installing .NET $requiredSdkMajor SDK with winget (accept the Windows prompt)" -File 'winget.exe' -Arguments "install --id $sdkWingetId --exact --source winget --silent --accept-package-agreements --accept-source-agreements" -OkCodes $wingetOkCodes -Encoding ([System.Text.Encoding]::UTF8)),
-            (Get-ActionStep 'Checking the SDK' {
-                $found = Get-DotnetSdk
-                if (-not $found.Version) { throw ".NET $requiredSdkMajor SDK still not found. Install it from $sdkDownloadUrl and click 'Check again'." }
-                Write-SetupLog "Found .NET SDK $($found.Version)"
-            })
+            (Get-ProcessStep -Title "Installing $what (deps.ps1)" -File $powershell -Arguments $depsArgs -WorkingDirectory $sourceRoot -Encoding ([System.Text.Encoding]::UTF8)),
+            (Get-ActionStep 'Checking again' { Show-Requirement })
         )
         Invoke-Step $steps { Write-SetupLog 'Requirements are complete. Click Install to continue.' }
     })
@@ -402,8 +370,9 @@ $install.Add_Click({
         if ($isRelease -and -not $sameFolder -and $target.StartsWith("$source\", [StringComparison]::OrdinalIgnoreCase)) {
             [void][System.Windows.Forms.MessageBox]::Show('The app folder cannot be inside the package folder.', 'NorthCommander Setup', 'OK', 'Warning'); return
         }
-        if ($isSource -and -not $script:sdk.Version) {
-            [void][System.Windows.Forms.MessageBox]::Show("The .NET $requiredSdkMajor SDK is needed to build NorthCommander. Click 'Install missing...' first.", 'NorthCommander Setup', 'OK', 'Warning'); return
+        if ($script:status.Missing) {
+            $what = if ($script:status.Missing -eq 'Runtime') { 'runtime is needed to run NorthCommander Lite' } else { 'SDK is needed to build NorthCommander' }
+            [void][System.Windows.Forms.MessageBox]::Show("The .NET $($script:status.Major) $what. Click 'Install missing...' first.", 'NorthCommander Setup', 'OK', 'Warning'); return
         }
         $exe = Join-Path $target 'NorthCommander.exe'
         $running = @(Get-Process -Name NorthCommander -ErrorAction SilentlyContinue | Where-Object {
@@ -421,7 +390,7 @@ $install.Add_Click({
         if ($isSource) {
             $publishArgs = "publish `"$projectPath`" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true " +
             "-p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -p:DebugType=None -o `"$script:target`""
-            $steps.Add((Get-ProcessStep -Title 'Building NorthCommander.exe (the first build downloads packages and takes a few minutes)' -File $script:sdk.Dotnet -Arguments $publishArgs -WorkingDirectory $sourceRoot))
+            $steps.Add((Get-ProcessStep -Title 'Building NorthCommander.exe (the first build downloads packages and takes a few minutes)' -File $script:status.Sdk.Dotnet -Arguments $publishArgs -WorkingDirectory $sourceRoot))
             $steps.Add((Get-ActionStep 'Copying scripts and docs' {
                         foreach ($name in $supportFiles) {
                             $file = Join-Path $sourceRoot $name
@@ -460,8 +429,9 @@ $form.Add_FormClosing({
 
 $form.Add_Shown({
         Show-Requirement
-        if ($isSource -and -not $script:sdk.Version) {
-            Write-SetupLog "The .NET $requiredSdkMajor SDK is missing. Click 'Install missing...' to install it."
+        if ($script:status.Missing) {
+            $what = if ($script:status.Missing -eq 'Runtime') { 'runtime' } else { 'SDK' }
+            Write-SetupLog "The .NET $($script:status.Major) $what is missing. Click 'Install missing...' to install it."
         }
         else {
             Write-SetupLog 'Ready. Choose the app folder and options, then click Install.'

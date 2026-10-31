@@ -22,6 +22,7 @@ internal sealed class SetupForm : Form
     private const string Title = "NorthCommander Setup";
     private const string PayloadResource = "payload.zip";
     private const string AppExe = "NorthCommander.exe";
+    private const string PackageManifest = "NorthCommander.package.json";
 
     private static readonly Color RetroBlue = Color.FromArgb(0, 0, 168);
     private static readonly Color RetroYellow = Color.FromArgb(255, 255, 85);
@@ -41,6 +42,7 @@ internal sealed class SetupForm : Form
     private readonly Control[] _lockedControls;
     private readonly string _version;
     private readonly string _powerShell;
+    private readonly int _liteMajor;
     private bool _busy;
     private bool _ready;
 
@@ -49,20 +51,21 @@ internal sealed class SetupForm : Form
         _version = typeof(SetupForm).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "1.0.0";
         _powerShell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+        _liteMajor = ReadLiteMajor();
 
-        Text = Title;
+        Text = _liteMajor > 0 ? Title + " (Lite)" : Title;
         Font = new Font("Segoe UI", 9F);
         AutoScaleMode = AutoScaleMode.None;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(660, 560);
+        ClientSize = new Size(660, 576);
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (ArgumentException) { }
 
         var header = new Panel { Bounds = new Rectangle(0, 0, 660, 64), BackColor = RetroBlue };
         header.Controls.Add(new Label
         {
-            Text = Title,
+            Text = Text,
             Font = new Font("Consolas", 16F, FontStyle.Bold),
             ForeColor = RetroYellow,
             Bounds = new Rectangle(16, 8, 620, 28),
@@ -75,15 +78,15 @@ internal sealed class SetupForm : Form
         });
         Controls.Add(header);
 
-        var requirementsGroup = new GroupBox { Text = "1. Requirements", Bounds = new Rectangle(12, 74, 636, 112) };
+        var requirementsGroup = new GroupBox { Text = "1. Requirements", Bounds = new Rectangle(12, 74, 636, 128) };
         _requirements.View = View.Details;
         _requirements.FullRowSelect = true;
         _requirements.HeaderStyle = ColumnHeaderStyle.Nonclickable;
-        _requirements.Bounds = new Rectangle(12, 22, 612, 80);
+        _requirements.Bounds = new Rectangle(12, 22, 612, 96);
         requirementsGroup.Controls.Add(_requirements);
         Controls.Add(requirementsGroup);
 
-        var setupGroup = new GroupBox { Text = "2. Set up", Bounds = new Rectangle(12, 194, 636, 136) };
+        var setupGroup = new GroupBox { Text = "2. Set up", Bounds = new Rectangle(12, 210, 636, 136) };
         setupGroup.Controls.Add(new Label { Text = "App folder (settings are kept here too):", Bounds = new Rectangle(12, 22, 400, 18) });
         _folder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "NorthCommander");
         _folder.Bounds = new Rectangle(12, 42, 516, 24);
@@ -98,7 +101,7 @@ internal sealed class SetupForm : Form
         _launch = AddCheckBox(setupGroup, "Start NorthCommander when done", 350, 100, 270);
         Controls.Add(setupGroup);
 
-        _progress.Bounds = new Rectangle(12, 340, 636, 16);
+        _progress.Bounds = new Rectangle(12, 356, 636, 16);
         Controls.Add(_progress);
 
         _log.Multiline = true;
@@ -107,17 +110,17 @@ internal sealed class SetupForm : Form
         _log.Font = new Font("Consolas", 8.5F);
         _log.BackColor = RetroBlue;
         _log.ForeColor = RetroCyan;
-        _log.Bounds = new Rectangle(12, 364, 636, 148);
+        _log.Bounds = new Rectangle(12, 380, 636, 148);
         Controls.Add(_log);
 
         _install.Text = "Install";
-        _install.Bounds = new Rectangle(452, 522, 96, 28);
+        _install.Bounds = new Rectangle(452, 538, 96, 28);
         _install.Click += OnInstall;
         Controls.Add(_install);
         AcceptButton = _install;
 
         _close.Text = "Close";
-        _close.Bounds = new Rectangle(552, 522, 96, 28);
+        _close.Bounds = new Rectangle(552, 538, 96, 28);
         _close.Click += (_, _) => Close();
         Controls.Add(_close);
 
@@ -157,8 +160,15 @@ internal sealed class SetupForm : Form
         {
             hasApp = payload is not null;
         }
-        AddRequirement("NorthCommander (self-contained, no .NET needed)", hasApp,
+        AddRequirement(_liteMajor > 0 ? "NorthCommander Lite" : "NorthCommander (self-contained, no .NET needed)", hasApp,
             hasApp ? "Included" : "Missing: this setup build has no app inside");
+
+        if (_liteMajor > 0)
+        {
+            var runtime = FindRuntime(_folder.Text);
+            AddRequirement($".NET {_liteMajor} runtime (for NorthCommander Lite)", true,
+                runtime ?? "Missing: setup offers to install it");
+        }
 
         var hasPowerShell = File.Exists(_powerShell);
         AddRequirement("Windows PowerShell (for shortcuts and PATH)", hasPowerShell,
@@ -180,6 +190,68 @@ internal sealed class SetupForm : Form
 
     private static Stream? OpenPayload() =>
         typeof(SetupForm).Assembly.GetManifestResourceStream(PayloadResource);
+
+    /// <summary>The .NET major version a Lite payload needs (from NorthCommander.package.json), or 0 for the full app.</summary>
+    private static int ReadLiteMajor()
+    {
+        using var stream = OpenPayload();
+        if (stream is null)
+        {
+            return 0;
+        }
+        using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+        var entry = zip.GetEntry(PackageManifest);
+        if (entry is null)
+        {
+            return 0;
+        }
+        using var reader = new StreamReader(entry.Open());
+        var match = System.Text.RegularExpressions.Regex.Match(reader.ReadToEnd(), "\"runtimeVersion\"\\s*:\\s*\"(\\d+)");
+        return match.Success ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : 10;
+    }
+
+    /// <summary>Where NorthCommander Lite finds the .NET runtime: app folder, DOTNET_ROOT, then the system (same order as its exe).</summary>
+    private string? FindRuntime(string appFolder)
+    {
+        var programFiles = Environment.GetEnvironmentVariable("ProgramW6432") ?? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var candidates = new[]
+        {
+            ("app folder", SafeCombine(appFolder, "dotnet")),
+            ("DOTNET_ROOT", Environment.GetEnvironmentVariable("DOTNET_ROOT_X64")),
+            ("DOTNET_ROOT", Environment.GetEnvironmentVariable("DOTNET_ROOT")),
+            ("system", SafeCombine(programFiles, "dotnet")),
+        };
+        foreach (var (where, root) in candidates)
+        {
+            var shared = SafeCombine(root, "shared", "Microsoft.NETCore.App");
+            if (shared is null || !Directory.Exists(shared))
+            {
+                continue;
+            }
+            var version = Directory.GetDirectories(shared, _liteMajor + ".*").Select(Path.GetFileName).OrderByDescending(v => v, StringComparer.Ordinal).FirstOrDefault();
+            if (version is not null)
+            {
+                return $"Found {version} ({where})";
+            }
+        }
+        return null;
+    }
+
+    private static string? SafeCombine(string? root, params string[] parts)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return null;
+        }
+        try
+        {
+            return Path.Combine(new[] { Environment.ExpandEnvironmentVariables(root!.Trim().Trim('"')) }.Concat(parts).ToArray());
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
 
     private void OnBrowse(object? sender, EventArgs e)
     {
@@ -215,6 +287,25 @@ internal sealed class SetupForm : Form
         if (!_startMenu.Checked) installArgs.Append(" -NoStartMenu");
         if (!_desktop.Checked) installArgs.Append(" -NoDesktop");
         if (!_path.Checked) installArgs.Append(" -NoPath");
+        string? runtimeScope = null;
+        if (_liteMajor > 0 && FindRuntime(target) is null)
+        {
+            var answer = MessageBox.Show(this,
+                $"NorthCommander Lite needs the .NET {_liteMajor} runtime from Microsoft (download of about 30 MB).{Environment.NewLine}{Environment.NewLine}" +
+                $"Yes: install it into the app folder (portable: it moves with the folder, no administrator rights).{Environment.NewLine}" +
+                "No: install it system-wide with winget (Windows asks for permission).",
+                Title, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.Cancel)
+            {
+                return;
+            }
+            if (!File.Exists(_powerShell))
+            {
+                Warn("Windows PowerShell is needed to install the .NET runtime, but it wasn't found.");
+                return;
+            }
+            runtimeScope = answer == DialogResult.Yes ? "App" : "Machine";
+        }
         var integrate = _startMenu.Checked || _desktop.Checked || _path.Checked;
         var launch = _launch.Checked;
 
@@ -224,6 +315,18 @@ internal sealed class SetupForm : Form
             Log($"== Unpacking NorthCommander {_version} to {target}");
             var progress = new Progress<int>(percent => _progress.Value = percent);
             await Task.Run(() => ExtractPayload(target, progress));
+
+            if (runtimeScope is not null)
+            {
+                Log($"== Installing the .NET {_liteMajor} runtime (deps.ps1)");
+                var deps = Path.Combine(target, "deps.ps1");
+                var depsExit = await RunAsync(_powerShell,
+                    $"-NoProfile -ExecutionPolicy Bypass -File \"{deps}\" -Yes -Scope {runtimeScope} -Location \"{target}\"", target);
+                if (depsExit != 0)
+                {
+                    throw new InvalidOperationException($"Installing the .NET {_liteMajor} runtime failed (exit code {depsExit}). Run Check-Dependencies.cmd in the app folder to try again.");
+                }
+            }
 
             if (integrate && File.Exists(_powerShell))
             {

@@ -112,19 +112,51 @@ NorthCommander.sln
 
 [MIT](LICENSE)
 
-## Installation (portable)
+## Installation (portable or installed)
+
+Every release on the [Releases](https://github.com/thomasnorlund/NorthCommander/releases) page comes in two
+variants, each as a setup program and as a portable zip:
+
+| Variant | Files | Size | Needs |
+|---------|-------|------|-------|
+| **Full** | `NorthCommander-Setup-<version>.exe`, `NorthCommander-<version>-win-x64.zip` | ~65 MB | nothing (self-contained) |
+| **Lite** | `NorthCommander-Setup-Lite-<version>.exe`, `NorthCommander-<version>-win-x64-lite.zip` | ~14 MB | the .NET 10 runtime |
+
+Lite's `NorthCommander.exe` looks for the .NET runtime first in a `dotnet` folder next to itself, then in
+`DOTNET_ROOT`, then in the system-wide install. So the runtime can live inside the app folder and travel
+with it (portable), or be installed once for the whole PC.
+
+Either variant can be used as an installed app (shortcuts, PATH) or purely portable (unzip and run, e.g.
+from a USB stick); in both cases everything lives in the one app folder.
+
+### Checking dependencies
+
+Double-click `Check-Dependencies.cmd` in any NorthCommander folder (release or source clone), or run
+`powershell -ExecutionPolicy Bypass -File .\deps.ps1`. It works out what that folder needs and lists what is
+present or missing:
+
+| Folder | Needs | Install options (only after you confirm) |
+|--------|-------|-------------------------------------------|
+| Full release | nothing | none |
+| Lite release | .NET 10 runtime | **[A]** into the app folder's `dotnet` subfolder (portable, no admin, no registry) or **[M]** system-wide with winget |
+| Source clone | .NET 10 SDK | **[U]** for your user only (`%LOCALAPPDATA%\Microsoft\dotnet`, no admin) or **[M]** system-wide with winget |
+
+Without winget, the app-folder and user options use Microsoft's official `dotnet-install.ps1`.
+`deps.ps1 -Check` only reports (exit code 0 = complete, 1 = something missing), and
+`deps.ps1 -Yes -Scope App|User|Machine` installs without asking, for scripts. The setup programs below use
+the same checks.
 
 ### Setup program (recommended)
 
-Download `NorthCommander-Setup-<version>.exe` from the
-[Releases](https://github.com/thomasnorlund/NorthCommander/releases) page and run it. It needs nothing
-installed (it runs on .NET Framework 4.8, part of Windows 10/11) and no administrator rights:
+Download a setup from the Releases page and run it. It needs nothing installed (it runs on .NET Framework 4.8,
+part of Windows 10/11) and no administrator rights:
 
-1. **Requirements:** checks for Windows 10/11 64-bit. The app inside is self-contained, so there is nothing
-   else to install.
+1. **Requirements:** checks for Windows 10/11 64-bit. The full setup needs nothing else. The Lite setup
+   shows whether the .NET 10 runtime is present and, if it's missing, asks whether to install it into the
+   app folder (portable) or system-wide with winget.
 2. **Set up:** unpacks NorthCommander into the folder you choose (default
-   `%LOCALAPPDATA%\Programs\NorthCommander`), then runs `install.ps1` there for the Start Menu shortcut,
-   Desktop shortcut and PATH entry (each optional).
+   `%LOCALAPPDATA%\Programs\NorthCommander`), installs the runtime if you chose to (Lite), then runs
+   `install.ps1` there for the Start Menu shortcut, Desktop shortcut and PATH entry (each optional).
 
 Running a newer setup over an existing folder updates it and keeps `NorthCommander.config.json`.
 The setup is built by the release workflow (`src/NorthCommander.Setup`, which embeds the zipped app).
@@ -134,10 +166,11 @@ The setup is built by the release workflow (`src/NorthCommander.Setup`, which em
 Double-click `Setup.cmd` (in a clone of this repository, or in the portable release zip). It opens a small setup
 window (Windows PowerShell + Windows Forms, built into Windows 10/11; no administrator rights needed):
 
-1. **Requirements:** lists what is needed and what is missing. The release `NorthCommander.exe` is
-   self-contained and needs nothing; building from source needs the .NET 10 SDK.
-2. **Install missing...:** after asking, installs the .NET 10 SDK with winget. Windows shows its own
-   permission prompt for it. Without winget it offers the download page instead.
+1. **Requirements:** lists what is needed and what is missing (`deps.ps1`): the .NET 10 SDK for a
+   source clone, the .NET 10 runtime for a Lite release, nothing for a full release.
+2. **Install missing...:** after asking, installs it: the SDK system-wide with winget or for your user only,
+   the runtime into the app folder or system-wide. Windows shows its own permission prompt for system-wide
+   installs.
 3. **Install:** from a source clone it builds a self-contained `NorthCommander.exe` into the app folder
    you choose (default `%LOCALAPPDATA%\Programs\NorthCommander`); from a release zip it uses the exe in
    place, or copies it to another folder. It then runs `install.ps1` there for the shortcuts and PATH
@@ -147,7 +180,8 @@ Running it again updates an existing app folder; `NorthCommander.config.json` is
 
 ### Manual
 
-1. Unzip the release (e.g. `NorthCommander_Release.zip`) to any folder, for example `C:\Tools\NorthCommander` or a USB stick.
+1. Unzip a release zip to any folder, for example `C:\Tools\NorthCommander` or a USB stick. For Lite, run
+   `Check-Dependencies.cmd` once and choose **[A]** to put the .NET runtime into that folder too.
 2. Optional Windows integration (no administrator rights needed):
    `powershell -ExecutionPolicy Bypass -File .\install.ps1`
    - creates `NorthCommander.lnk` in `%APPDATA%\Microsoft\Windows\Start Menu\Programs` (typing "North" in Windows Search finds it) and on the Desktop (`-NoDesktop` skips it);
@@ -162,13 +196,19 @@ If the folder is read-only, NorthCommander still runs but doesn't save settings.
 
 ## Releases
 
-Pushing a tag such as `v1.0.0` runs `.github/workflows/release.yml` on Windows: it tests, publishes a
-self-contained single-file `NorthCommander.exe` (win-x64, ReadyToRun, no .NET install needed), zips it
-with README/LICENSE and attaches `NorthCommander-v1.0.0-win-x64.zip` to a GitHub release.
+Pushing a tag such as `v1.0.0` runs `.github/workflows/release.yml` on Windows: it tests, publishes
+`NorthCommander.exe` (win-x64, single file) twice, self-contained with ReadyToRun (full) and
+framework-dependent (Lite, plus `NorthCommander.package.json` so `deps.ps1` knows it needs the runtime), zips
+each with the scripts and docs, builds a setup exe around each zip, and attaches all four files to a GitHub
+release.
 
 Local equivalent:
 
 ```sh
 dotnet publish src/NorthCommander.UI -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -p:DebugType=None -o publish
+
+# Lite (add NorthCommander.package.json, see the workflow)
+dotnet publish src/NorthCommander.UI -c Release -r win-x64 --self-contained false \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o publish-lite
 ```

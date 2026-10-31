@@ -1,7 +1,8 @@
 name: release
 
-# Pushing a tag like v1.0.0 builds a self-contained Windows x64 NorthCommander.exe,
-# zips it, wraps it in NorthCommander-Setup-<tag>.exe and attaches both to a GitHub release.
+# Pushing a tag like v1.0.0 builds NorthCommander.exe for Windows x64 in two variants and attaches
+# a portable zip and a setup exe of each to a GitHub release:
+#   full: self-contained, needs no .NET;  lite: needs the .NET 10 runtime (deps.ps1 / setup install it).
 on:
   push:
     tags: ['v*']
@@ -36,33 +37,61 @@ jobs:
             -p:DebugType=None `
             -p:Version=$version
           Remove-Item publish/*.pdb -ErrorAction SilentlyContinue
-          Copy-Item README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd, setup.ps1, Setup.cmd publish/
+          Copy-Item README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd, setup.ps1, Setup.cmd, deps.ps1, Check-Dependencies.cmd publish/
           Compress-Archive -Path publish/* -DestinationPath "NorthCommander-${{ github.ref_name }}-win-x64.zip"
 
-      - name: Build setup
+      - name: Publish win-x64 lite
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          New-Item -ItemType Directory payload | Out-Null
-          Copy-Item publish/NorthCommander.exe, README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd payload/
-          Compress-Archive -Path payload/* -DestinationPath payload.zip
-          dotnet build src/NorthCommander.Setup/NorthCommander.Setup.csproj `
+          dotnet publish src/NorthCommander.UI/NorthCommander.UI.csproj `
             --configuration Release `
-            --output setup `
-            "-p:PayloadZip=$PWD/payload.zip" `
+            --runtime win-x64 `
+            --self-contained false `
+            --output publish-lite `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
             -p:Version=$version
-          Copy-Item setup/NorthCommander-Setup.exe "NorthCommander-Setup-${{ github.ref_name }}.exe"
+          Remove-Item publish-lite/*.pdb -ErrorAction SilentlyContinue
+          '{ "variant": "lite", "runtime": "Microsoft.NETCore.App", "runtimeVersion": "10.0" }' |
+            Set-Content -Encoding ascii publish-lite/NorthCommander.package.json
+          Copy-Item README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd, setup.ps1, Setup.cmd, deps.ps1, Check-Dependencies.cmd publish-lite/
+          Compress-Archive -Path publish-lite/* -DestinationPath "NorthCommander-${{ github.ref_name }}-win-x64-lite.zip"
+
+      - name: Build setups
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          foreach ($variant in @(@{ Dir = 'publish'; Name = 'NorthCommander-Setup' }, @{ Dir = 'publish-lite'; Name = 'NorthCommander-Setup-Lite' })) {
+            $payload = "payload-$($variant.Name)"
+            New-Item -ItemType Directory $payload | Out-Null
+            Get-ChildItem $variant.Dir -File | Where-Object Name -notin 'setup.ps1', 'Setup.cmd' | Copy-Item -Destination $payload
+            Compress-Archive -Path "$payload/*" -DestinationPath "$payload.zip"
+            dotnet build src/NorthCommander.Setup/NorthCommander.Setup.csproj `
+              --configuration Release `
+              --no-incremental `
+              --output "setup-$($variant.Name)" `
+              "-p:PayloadZip=$PWD/$payload.zip" `
+              -p:Version=$version
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Copy-Item "setup-$($variant.Name)/NorthCommander-Setup.exe" "$($variant.Name)-${{ github.ref_name }}.exe"
+          }
 
       - uses: actions/upload-artifact@v4
         with:
           name: NorthCommander-${{ github.ref_name }}-win-x64
           path: |
             NorthCommander-${{ github.ref_name }}-win-x64.zip
+            NorthCommander-${{ github.ref_name }}-win-x64-lite.zip
             NorthCommander-Setup-${{ github.ref_name }}.exe
+            NorthCommander-Setup-Lite-${{ github.ref_name }}.exe
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             NorthCommander-${{ github.ref_name }}-win-x64.zip
+            NorthCommander-${{ github.ref_name }}-win-x64-lite.zip
             NorthCommander-Setup-${{ github.ref_name }}.exe
+            NorthCommander-Setup-Lite-${{ github.ref_name }}.exe
           generate_release_notes: true
