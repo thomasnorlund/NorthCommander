@@ -16,6 +16,8 @@
     <Window.KeyBindings>
         <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
         <KeyBinding Gesture="F6" Command="{Binding MoveCommand}" />
+        <KeyBinding Gesture="Ctrl+T" Command="{Binding NewTabCommand}" />
+        <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
     </Window.KeyBindings>
 
     <Panel>
@@ -39,6 +41,8 @@
                     <TextBlock Text="F5  Copy" />
                     <TextBlock Text="F6  Move" />
                     <TextBlock Text="Ctrl+R  Refresh" />
+                    <TextBlock Text="Ctrl+T/W  New/close tab" />
+                    <TextBlock Text="Ctrl+Tab  Next tab" />
                 </StackPanel>
             </Border>
 

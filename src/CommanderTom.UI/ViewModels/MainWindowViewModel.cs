@@ -58,6 +58,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void Move() => OpenTransferDialog(FileTransferType.Move);
 
+    [RelayCommand]
+    private void NewTab() => WhenNoModal(ActivePanel.NewTab);
+
+    [RelayCommand]
+    private void CloseTab() => WhenNoModal(() => ActivePanel.CloseTab());
+
+    [RelayCommand]
+    private void NextTab() => WhenNoModal(ActivePanel.NextTab);
+
+    [RelayCommand]
+    private void PreviousTab() => WhenNoModal(ActivePanel.PreviousTab);
+
+    private void WhenNoModal(Action action)
+    {
+        if (!IsModalOpen)
+        {
+            action();
+        }
+    }
+
     private void OpenTransferDialog(FileTransferType type)
     {
         if (IsModalOpen)
@@ -65,17 +85,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var panel = ActivePanel;
-        var sources = panel.GetSelectedPaths();
+        var tab = ActivePanel.SelectedTab;
+        var sources = tab.GetSelectedPaths();
         if (sources.Count == 0)
         {
             return;
         }
 
-        TransferDialog.Open(type, sources, InactivePanel.CurrentPath, target => EnqueueTransfers(panel, type, sources, target));
+        TransferDialog.Open(type, sources, InactivePanel.SelectedTab.CurrentPath, target => EnqueueTransfers(tab, type, sources, target));
     }
 
-    private string? EnqueueTransfers(FilePanelViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target)
+    private string? EnqueueTransfers(TabViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target)
     {
         try
         {
@@ -128,15 +148,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             affected.Add(sourceDir);
         }
 
-        var refreshes = new[] { LeftPanel, RightPanel }
-            .Where(panel => affected.Exists(panel.IsShowingDirectory))
-            .Select(panel => panel.RefreshAsync());
+        var refreshes = LeftPanel.Tabs.Concat(RightPanel.Tabs)
+            .Where(tab => affected.Exists(tab.IsShowingDirectory))
+            .Select(tab => tab.RefreshAsync());
         await Task.WhenAll(refreshes);
 
         if (task.Status == FileTransferStatus.Failed)
         {
             var verb = task.TaskType == FileTransferType.Move ? "Move" : "Copy";
-            ActivePanel.ErrorMessage = $"{verb} of '{task.DisplayName}' failed: {task.ErrorMessage}";
+            ActivePanel.SelectedTab.ErrorMessage = $"{verb} of '{task.DisplayName}' failed: {task.ErrorMessage}";
         }
     }
 

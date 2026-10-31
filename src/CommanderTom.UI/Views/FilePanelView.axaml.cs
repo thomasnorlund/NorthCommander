@@ -10,6 +10,7 @@ namespace CommanderTom.UI.Views;
 public partial class FilePanelView : UserControl
 {
     private FilePanelViewModel? _viewModel;
+    private TabViewModel? _tab;
 
     public FilePanelView()
     {
@@ -20,6 +21,7 @@ public partial class FilePanelView : UserControl
 
         // Tunnel so the ListBox does not consume Space before we can use it for marking.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        TabStrip.AddHandler(PointerPressedEvent, OnTabStripPointerPressed);
         FileList.DoubleTapped += OnFileListDoubleTapped;
     }
 
@@ -30,10 +32,49 @@ public partial class FilePanelView : UserControl
         _viewModel?.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel = DataContext as FilePanelViewModel;
         _viewModel?.PropertyChanged += OnViewModelPropertyChanged;
+        AttachSelectedTab();
+    }
+
+    private void AttachSelectedTab()
+    {
+        _tab?.PropertyChanged -= OnTabPropertyChanged;
+        _tab = _viewModel?.SelectedTab;
+        _tab?.PropertyChanged += OnTabPropertyChanged;
+    }
+
+    private void OnTabPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_viewModel is { IsActive: true } && e.PropertyName == nameof(TabViewModel.Items))
+        {
+            FocusSelectedItem();
+        }
+    }
+
+    private void OnTabStripPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_viewModel is null || (e.Source as Avalonia.StyledElement)?.DataContext is not TabViewModel tab)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(this).Properties;
+        if (point.IsLeftButtonPressed)
+        {
+            _viewModel.SelectedTab = tab;
+        }
+        else if (point.IsMiddleButtonPressed)
+        {
+            _viewModel.CloseTab(tab);
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(FilePanelViewModel.SelectedTab))
+        {
+            AttachSelectedTab();
+        }
+
         if (_viewModel is not { IsActive: true })
         {
             return;
@@ -41,7 +82,7 @@ public partial class FilePanelView : UserControl
 
         // Keep keyboard focus on the selected row of the active panel so the arrow keys work
         // immediately after switching panels or loading a new directory.
-        if (e.PropertyName is nameof(FilePanelViewModel.IsActive) or nameof(FilePanelViewModel.Items))
+        if (e.PropertyName is nameof(FilePanelViewModel.IsActive) or nameof(FilePanelViewModel.SelectedTab))
         {
             FocusSelectedItem();
         }
@@ -78,7 +119,7 @@ public partial class FilePanelView : UserControl
             return;
         }
 
-        _viewModel.ToggleMarkCommand.Execute(null);
+        _viewModel.SelectedTab.ToggleMarkCommand.Execute(null);
         FocusSelectedItem();
         e.Handled = true;
     }
@@ -89,9 +130,9 @@ public partial class FilePanelView : UserControl
 
     private void OnFileListDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (_viewModel?.OpenSelectedCommand.CanExecute(null) == true)
+        if (_viewModel?.SelectedTab.OpenSelectedCommand.CanExecute(null) == true)
         {
-            _viewModel.OpenSelectedCommand.Execute(null);
+            _viewModel.SelectedTab.OpenSelectedCommand.Execute(null);
         }
     }
 }

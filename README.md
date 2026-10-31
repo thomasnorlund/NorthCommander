@@ -30,6 +30,9 @@ dotnet test
 | `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red |
 | `F5` | Copy marked items (or the item under the cursor) to the other panel (confirm target in overlay) |
 | `F6` | Move/rename marked items (or the item under the cursor) to the other panel |
+| `Ctrl+T` | New folder tab in the active panel (same folder) |
+| `Ctrl+W` | Close the current tab (the last tab of a panel stays open); middle-click also closes |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab of the active panel |
 | `Enter` / `Esc` (in dialog) | Confirm / cancel |
 
 ## Project layout
@@ -56,6 +59,8 @@ CommanderTom.sln
   resumed and canceled individually or all at once, whether queued or running. Copies stream through a
   pooled 1 MiB buffer, never overwrite existing files, and delete partial output on failure/cancel.
   Moves try a same-volume rename first and fall back to copy + delete.
+- Each panel holds folder tabs (`TabViewModel`). Right-click a tab to Lock/Unlock it; a locked tab
+  (shown as `*name`) never leaves its folder: entering a subfolder or going up opens a new tab instead.
 - When a target file already exists, only that task waits while the conflict dialog asks:
   Overwrite, Overwrite All, Skip, Skip All, Rename (keeps both as `name (2).ext`) or Cancel.
   "All" answers apply to every item of the same F5/F6 (`FileTransferBatch`). Overwrites go through a

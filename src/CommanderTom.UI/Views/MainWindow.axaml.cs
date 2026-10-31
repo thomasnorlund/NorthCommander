@@ -47,7 +47,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key == Key.Tab && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None)
+        if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            var command = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? _viewModel.PreviousTabCommand : _viewModel.NextTabCommand;
+            command.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Tab && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None)
         {
             _viewModel.SwitchActivePanelCommand.Execute(null);
             e.Handled = true;
