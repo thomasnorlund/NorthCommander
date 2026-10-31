@@ -1,6 +1,6 @@
 # NorthCommander
 
-A modern, high-performance orthodox (dual-pane) file manager for Windows, inspired by legenadry File Commander applications.
+A modern, high-performance orthodox (dual-pane) file manager for Windows, inspired by legendary File Commander applications.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net/) using the MVVM pattern.
 
 > Status: Phase 2 – two panels, async directory listing, keyboard navigation, background F5/F6 copy/move queue, TC-style multi-selection and overwrite/skip conflict prompt.
