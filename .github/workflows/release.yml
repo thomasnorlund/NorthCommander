@@ -1,7 +1,7 @@
 name: release
 
 # Pushing a tag like v1.0.0 builds a self-contained Windows x64 NorthCommander.exe,
-# zips it and attaches it to a GitHub release.
+# zips it, wraps it in NorthCommander-Setup-<tag>.exe and attaches both to a GitHub release.
 on:
   push:
     tags: ['v*']
@@ -39,12 +39,30 @@ jobs:
           Copy-Item README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd, setup.ps1, Setup.cmd publish/
           Compress-Archive -Path publish/* -DestinationPath "NorthCommander-${{ github.ref_name }}-win-x64.zip"
 
+      - name: Build setup
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          New-Item -ItemType Directory payload | Out-Null
+          Copy-Item publish/NorthCommander.exe, README.md, LICENSE, install.ps1, uninstall.ps1, north.cmd payload/
+          Compress-Archive -Path payload/* -DestinationPath payload.zip
+          dotnet build src/NorthCommander.Setup/NorthCommander.Setup.csproj `
+            --configuration Release `
+            --output setup `
+            "-p:PayloadZip=$PWD/payload.zip" `
+            -p:Version=$version
+          Copy-Item setup/NorthCommander-Setup.exe "NorthCommander-Setup-${{ github.ref_name }}.exe"
+
       - uses: actions/upload-artifact@v4
         with:
           name: NorthCommander-${{ github.ref_name }}-win-x64
-          path: NorthCommander-${{ github.ref_name }}-win-x64.zip
+          path: |
+            NorthCommander-${{ github.ref_name }}-win-x64.zip
+            NorthCommander-Setup-${{ github.ref_name }}.exe
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: NorthCommander-${{ github.ref_name }}-win-x64.zip
+          files: |
+            NorthCommander-${{ github.ref_name }}-win-x64.zip
+            NorthCommander-Setup-${{ github.ref_name }}.exe
           generate_release_notes: true

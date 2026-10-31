@@ -139,6 +139,9 @@ entry; `uninstall.ps1` removes them again.
 `Setup.cmd` starts `setup.ps1`, a Windows Forms wizard (Windows PowerShell 5.1, built into Windows) that
 checks requirements, installs a missing .NET 10 SDK with winget after asking, builds the exe when started
 from a source clone and then runs `install.ps1` in the chosen app folder.
+For releases, `src/NorthCommander.Setup` builds `NorthCommander-Setup-<tag>.exe`: a Windows Forms
+installer on .NET Framework 4.8 (part of Windows) with the zipped app embedded as a resource. It unpacks
+the app into the chosen folder and runs the same `install.ps1`.
 
 ### 2.11 Look and feel
 
@@ -182,7 +185,7 @@ them, and reported back. The git history shows each step as one commit.
 | 13 | Drag and drop with Explorer and other apps | `Drag and drop` |
 | 14 | 7z, RAR and TAR archives (read-only) | `Browse 7z, RAR and TAR` |
 | 15 | Folder size calculation | `Folder size calculation` |
-| 16 | Graphical setup wizard | `Setup wizard` |
+| 16 | Graphical setup wizard and NorthCommander-Setup.exe | `Setup wizard`, `Setup.exe` |
 
 ### 4.2 What worked well
 

@@ -114,9 +114,24 @@ NorthCommander.sln
 
 ## Installation (portable)
 
-### Setup wizard
+### Setup program (recommended)
 
-Double-click `Setup.cmd` (in the release zip or in a clone of this repository). It opens a small setup
+Download `NorthCommander-Setup-<version>.exe` from the
+[Releases](https://github.com/thomasnorlund/NorthCommander/releases) page and run it. It needs nothing
+installed (it runs on .NET Framework 4.8, part of Windows 10/11) and no administrator rights:
+
+1. **Requirements:** checks for Windows 10/11 64-bit. The app inside is self-contained, so there is nothing
+   else to install.
+2. **Set up:** unpacks NorthCommander into the folder you choose (default
+   `%LOCALAPPDATA%\Programs\NorthCommander`), then runs `install.ps1` there for the Start Menu shortcut,
+   Desktop shortcut and PATH entry (each optional).
+
+Running a newer setup over an existing folder updates it and keeps `NorthCommander.config.json`.
+The setup is built by the release workflow (`src/NorthCommander.Setup`, which embeds the zipped app).
+
+### Setup wizard from source
+
+Double-click `Setup.cmd` (in a clone of this repository, or in the portable release zip). It opens a small setup
 window (Windows PowerShell + Windows Forms, built into Windows 10/11; no administrator rights needed):
 
 1. **Requirements:** lists what is needed and what is missing. The release `NorthCommander.exe` is
