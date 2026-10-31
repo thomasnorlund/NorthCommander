@@ -13,12 +13,18 @@ public sealed class BackgroundTransferQueue : IBackgroundTransferQueue, IDisposa
     private readonly SemaphoreSlim _signal = new(0);
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Dictionary<FileTransferType, IFileOperation> _operations;
+    private readonly IFileConflictResolver? _conflictResolver;
     private readonly Task[] _workers;
     private bool _disposed;
 
-    public BackgroundTransferQueue(IEnumerable<IFileOperation> operations, BackgroundTransferQueueOptions? options = null)
+    /// <param name="conflictResolver">Asked when a target file exists; without one such transfers fail.</param>
+    public BackgroundTransferQueue(
+        IEnumerable<IFileOperation> operations,
+        BackgroundTransferQueueOptions? options = null,
+        IFileConflictResolver? conflictResolver = null)
     {
         _operations = operations.ToDictionary(o => o.Type);
+        _conflictResolver = conflictResolver;
         var workerCount = Math.Max(1, options?.MaxParallelTransfers ?? 1);
         _workers = new Task[workerCount];
         for (var i = 0; i < workerCount; i++)
@@ -238,11 +244,12 @@ public sealed class BackgroundTransferQueue : IBackgroundTransferQueue, IDisposa
     private async Task RunAsync(FileTransferTask task)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(task.Cancellation.Token, _shutdown.Token);
-        var context = new FileOperationContext(task, linked.Token);
+        var context = new FileOperationContext(task, _conflictResolver, linked.Token);
 
         FileTransferStatus finalStatus;
         try
         {
+            await context.CheckpointAsync().ConfigureAwait(false);
             await _operations[task.TaskType].ExecuteAsync(task, context).ConfigureAwait(false);
             finalStatus = FileTransferStatus.Completed;
         }

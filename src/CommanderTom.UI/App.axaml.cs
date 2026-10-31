@@ -45,6 +45,8 @@ public partial class App : Application
         services.AddSingleton<IFileOperation, CopyFileOperation>();
         services.AddSingleton<IFileOperation, MoveFileOperation>();
         services.AddSingleton(new BackgroundTransferQueueOptions { MaxParallelTransfers = 1 });
+        services.AddSingleton<ConflictDialogViewModel>();
+        services.AddSingleton<IFileConflictResolver>(sp => sp.GetRequiredService<ConflictDialogViewModel>());
         services.AddSingleton<IBackgroundTransferQueue, BackgroundTransferQueue>();
         services.AddSingleton<TransferQueueViewModel>();
 

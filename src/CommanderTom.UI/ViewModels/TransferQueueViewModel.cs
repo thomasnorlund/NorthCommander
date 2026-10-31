@@ -34,8 +34,7 @@ public sealed partial class TransferQueueViewModel : ViewModelBase
     [ObservableProperty]
     public partial string StatusText { get; private set; } = string.Empty;
 
-    public void Enqueue(FileTransferType type, string sourcePath, string destinationPath) =>
-        _queue.Enqueue(type, sourcePath, destinationPath);
+    public void Enqueue(FileTransferTask task) => _queue.Enqueue(task);
 
     [RelayCommand]
     private void TogglePause()
@@ -105,7 +104,7 @@ public sealed partial class TransferQueueViewModel : ViewModelBase
         ProgressPercentage = current.ProgressPercentage;
 
         var verb = current.TaskType == FileTransferType.Move ? "Moving" : "Copying";
-        var state = current.Status switch
+        var state = current.PendingConflict is not null ? "Waiting for your decision: " : current.Status switch
         {
             FileTransferStatus.Paused => "Paused: ",
             FileTransferStatus.Queued => "Waiting: ",

@@ -52,6 +52,15 @@
             <Setter Property="Background" Value="{StaticResource InactiveSelectionBrush}" />
         </Style>
 
+        <!-- Marked (Insert/Space) items -->
+        <Style Selector="Grid.marked TextBlock.cell">
+            <Setter Property="Foreground" Value="{StaticResource MarkedItemBrush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Border#PanelFrame.active ListBox#FileList ListBoxItem:selected Grid.marked TextBlock.cell">
+            <Setter Property="Foreground" Value="{StaticResource MarkedCursorItemBrush}" />
+        </Style>
+
         <Style Selector="Button.statusButton">
             <Setter Property="Focusable" Value="False" />
             <Setter Property="Padding" Value="8,0" />
@@ -150,7 +159,9 @@
                      Background="Transparent">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileItemViewModel">
-                        <Grid ColumnDefinitions="*,70,110,140" Opacity="{Binding Opacity}">
+                        <Grid ColumnDefinitions="*,70,110,140"
+                              Opacity="{Binding Opacity}"
+                              Classes.marked="{Binding IsMarked}">
                             <TextBlock Grid.Column="0" Classes="cell" Text="{Binding DisplayName}" />
                             <TextBlock Grid.Column="1" Classes="cell" Text="{Binding Extension}" />
                             <TextBlock Grid.Column="2" Classes="cell" Text="{Binding SizeText}" HorizontalAlignment="Right" />

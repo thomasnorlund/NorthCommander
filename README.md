@@ -3,7 +3,7 @@
 A modern, high-performance orthodox (dual-pane) file manager for Windows, inspired by Total Commander.
 Built with C# / .NET 10 and [Avalonia UI](https://avaloniaui.net/) using the MVVM pattern.
 
-> Status: Phase 2 – two panels, async directory listing, keyboard navigation, background F5/F6 copy/move queue.
+> Status: Phase 2 – two panels, async directory listing, keyboard navigation, background F5/F6 copy/move queue, TC-style multi-selection and overwrite/skip conflict prompt.
 
 ## Requirements
 
@@ -27,8 +27,9 @@ dotnet test
 | `Enter` / double-click | Open folder (or launch file with its default app) |
 | `Backspace` | Go to parent folder |
 | `Ctrl+R` | Refresh panel |
-| `F5` | Copy selected item to the other panel (confirm target in overlay) |
-| `F6` | Move/rename selected item to the other panel (confirm target in overlay) |
+| `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red |
+| `F5` | Copy marked items (or the item under the cursor) to the other panel (confirm target in overlay) |
+| `F6` | Move/rename marked items (or the item under the cursor) to the other panel |
 | `Enter` / `Esc` (in dialog) | Confirm / cancel |
 
 ## Project layout
@@ -55,6 +56,10 @@ CommanderTom.sln
   resumed and canceled individually or all at once, whether queued or running. Copies stream through a
   pooled 1 MiB buffer, never overwrite existing files, and delete partial output on failure/cancel.
   Moves try a same-volume rename first and fall back to copy + delete.
+- When a target file already exists, only that task waits while the conflict dialog asks:
+  Overwrite, Overwrite All, Skip, Skip All, Rename (keeps both as `name (2).ext`) or Cancel.
+  "All" answers apply to every item of the same F5/F6 (`FileTransferBatch`). Overwrites go through a
+  temporary file, so the existing file survives a failed or canceled copy; skipped files stay in the source on move.
 - While transfers run, the active panel's status bar shows progress with Pause/Resume and Cancel buttons.
 - Dependencies are wired with `Microsoft.Extensions.DependencyInjection` in `App.axaml.cs`;
   MVVM plumbing uses `CommunityToolkit.Mvvm` source generators.

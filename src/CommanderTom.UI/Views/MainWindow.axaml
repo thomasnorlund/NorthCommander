@@ -19,7 +19,7 @@
     </Window.KeyBindings>
 
     <Panel>
-        <DockPanel IsEnabled="{Binding !TransferDialog.IsOpen}">
+        <DockPanel IsEnabled="{Binding !IsModalOpen}">
             <!-- Key hint bar (Total Commander style) -->
             <Border DockPanel.Dock="Bottom"
                     Background="{StaticResource InactiveHeaderBrush}"
@@ -34,6 +34,7 @@
                     <TextBlock Text="Tab  Switch panel" />
                     <TextBlock Text="↑ ↓ PgUp PgDn Home End  Navigate" />
                     <TextBlock Text="Enter  Open" />
+                    <TextBlock Text="Ins/Space  Select" />
                     <TextBlock Text="Backspace  Parent folder" />
                     <TextBlock Text="F5  Copy" />
                     <TextBlock Text="F6  Move" />
@@ -54,8 +55,14 @@
             </Grid>
         </DockPanel>
 
-        <views:TransferDialogView x:Name="TransferDialogView"
-                                  DataContext="{Binding TransferDialog}"
+        <Panel IsEnabled="{Binding !ConflictDialog.IsOpen}">
+            <views:TransferDialogView x:Name="TransferDialogView"
+                                      DataContext="{Binding TransferDialog}"
+                                      IsVisible="{Binding IsOpen}" />
+        </Panel>
+
+        <views:ConflictDialogView x:Name="ConflictDialogView"
+                                  DataContext="{Binding ConflictDialog}"
                                   IsVisible="{Binding IsOpen}" />
     </Panel>
 </Window>

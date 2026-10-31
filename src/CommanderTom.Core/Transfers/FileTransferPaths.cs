@@ -6,6 +6,24 @@ public static class FileTransferPaths
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
     /// <summary>
+    /// First free "name (2).ext", "name (3).ext", ... next to <paramref name="path"/> (used by conflict "Rename").
+    /// </summary>
+    public static string GetUniquePath(string path)
+    {
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var name = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+        for (var i = 2; ; i++)
+        {
+            var candidate = Path.Combine(directory, $"{name} ({i}){extension}");
+            if (!Path.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
     /// Maps a user-entered target to the full destination path of <paramref name="sourcePath"/>.
     /// An existing directory (or any target when transferring several items, or one ending in a separator)
     /// receives the item under its own name; otherwise the target is the new name (copy-as / rename).

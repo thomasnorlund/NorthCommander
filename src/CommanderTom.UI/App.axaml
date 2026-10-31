@@ -19,6 +19,9 @@
             <SolidColorBrush x:Key="InactiveHeaderBrush" Color="#22808080" />
             <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#40808080" />
             <SolidColorBrush x:Key="ErrorBrush" Color="#D93025" />
+            <!-- Total Commander style marking: red text, yellow when under the active cursor -->
+            <SolidColorBrush x:Key="MarkedItemBrush" Color="#E53935" />
+            <SolidColorBrush x:Key="MarkedCursorItemBrush" Color="#FFEB3B" />
             <SolidColorBrush x:Key="OverlayBackdropBrush" Color="#66000000" />
         </ResourceDictionary>
     </Application.Resources>

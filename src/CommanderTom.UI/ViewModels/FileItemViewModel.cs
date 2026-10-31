@@ -1,15 +1,20 @@
 using System.Globalization;
 using CommanderTom.Core.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace CommanderTom.UI.ViewModels;
 
 /// <summary>
-/// Read-only row in a file panel. Display strings are computed on demand so that only
+/// Row in a file panel. Display strings are computed on demand so that only
 /// rows realized by the virtualizing list pay the formatting cost.
 /// </summary>
-public sealed class FileItemViewModel(FileSystemEntry entry)
+public sealed partial class FileItemViewModel(FileSystemEntry entry) : ObservableObject
 {
     public FileSystemEntry Entry { get; } = entry;
+
+    /// <summary>Marked with Insert/Space (Total Commander's "selection"; distinct from the cursor row).</summary>
+    [ObservableProperty]
+    public partial bool IsMarked { get; set; }
 
     public string FullPath => Entry.FullPath;
 

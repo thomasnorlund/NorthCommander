@@ -6,11 +6,19 @@ namespace CommanderTom.UI.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(FilePanelViewModel leftPanel, FilePanelViewModel rightPanel, TransferQueueViewModel transfers)
+    public MainWindowViewModel(
+        FilePanelViewModel leftPanel,
+        FilePanelViewModel rightPanel,
+        TransferQueueViewModel transfers,
+        ConflictDialogViewModel conflictDialog)
     {
         LeftPanel = leftPanel;
         RightPanel = rightPanel;
         Transfers = transfers;
+        ConflictDialog = conflictDialog;
+
+        TransferDialog.PropertyChanged += OnDialogPropertyChanged;
+        ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
 
         LeftPanel.ActivationRequested += OnPanelActivationRequested;
         RightPanel.ActivationRequested += OnPanelActivationRequested;
@@ -26,6 +34,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public TransferQueueViewModel Transfers { get; }
 
     public TransferDialogViewModel TransferDialog { get; } = new();
+
+    public ConflictDialogViewModel ConflictDialog { get; }
+
+    /// <summary>True while an overlay dialog owns the keyboard; the panels are disabled.</summary>
+    public bool IsModalOpen => TransferDialog.IsOpen || ConflictDialog.IsOpen;
 
     [ObservableProperty]
     public partial FilePanelViewModel ActivePanel { get; set; }
@@ -47,21 +60,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void OpenTransferDialog(FileTransferType type)
     {
-        if (TransferDialog.IsOpen)
+        if (IsModalOpen)
         {
             return;
         }
 
-        var sources = ActivePanel.GetSelectedPaths();
+        var panel = ActivePanel;
+        var sources = panel.GetSelectedPaths();
         if (sources.Count == 0)
         {
             return;
         }
 
-        TransferDialog.Open(type, sources, InactivePanel.CurrentPath, target => EnqueueTransfers(type, sources, target));
+        TransferDialog.Open(type, sources, InactivePanel.CurrentPath, target => EnqueueTransfers(panel, type, sources, target));
     }
 
-    private string? EnqueueTransfers(FileTransferType type, IReadOnlyList<string> sources, string target)
+    private string? EnqueueTransfers(FilePanelViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target)
     {
         try
         {
@@ -77,16 +91,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 plan.Add((source, destination));
             }
 
+            // One batch per confirmation: "Overwrite All" / "Skip All" cover every item of this F5/F6.
+            var batch = new FileTransferBatch();
             foreach (var (source, destination) in plan)
             {
-                Transfers.Enqueue(type, source, destination);
+                Transfers.Enqueue(new FileTransferTask(type, source, destination, batch));
             }
 
+            panel.ClearMarks();
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
         {
             return ex.Message;
+        }
+    }
+
+    private void OnDialogPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TransferDialogViewModel.IsOpen) or nameof(ConflictDialogViewModel.IsOpen))
+        {
+            OnPropertyChanged(nameof(IsModalOpen));
         }
     }
 

@@ -13,6 +13,7 @@ public sealed partial class FilePanelViewModel : ViewModelBase
 
     private readonly IDirectoryService _directoryService;
     private CancellationTokenSource? _loadCts;
+    private DirectoryListing? _listing;
 
     public FilePanelViewModel(IDirectoryService directoryService, TransferQueueViewModel transfers)
     {
@@ -59,9 +60,52 @@ public sealed partial class FilePanelViewModel : ViewModelBase
 
     public void RequestActivation() => ActivationRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Full paths of the items an operation (F5/F6, ...) should act on.</summary>
-    public IReadOnlyList<string> GetSelectedPaths() =>
-        SelectedItem is { IsParentLink: false } item ? [item.FullPath] : [];
+    /// <summary>
+    /// Full paths of the items an operation (F5/F6, ...) should act on: all marked items,
+    /// or the item under the cursor when nothing is marked.
+    /// </summary>
+    public IReadOnlyList<string> GetSelectedPaths()
+    {
+        var marked = Items.Where(i => i.IsMarked).Select(i => i.FullPath).ToList();
+        if (marked.Count > 0)
+        {
+            return marked;
+        }
+
+        return SelectedItem is { IsParentLink: false } item ? [item.FullPath] : [];
+    }
+
+    /// <summary>Insert/Space: toggles the mark of the cursor item and moves the cursor down.</summary>
+    [RelayCommand]
+    private void ToggleMark()
+    {
+        if (SelectedItem is not { } item)
+        {
+            return;
+        }
+
+        if (!item.IsParentLink)
+        {
+            item.IsMarked = !item.IsMarked;
+            UpdateStatusText();
+        }
+
+        var index = IndexOf(item);
+        if (index >= 0 && index < Items.Count - 1)
+        {
+            SelectedItem = Items[index + 1];
+        }
+    }
+
+    public void ClearMarks()
+    {
+        foreach (var item in Items)
+        {
+            item.IsMarked = false;
+        }
+
+        UpdateStatusText();
+    }
 
     public bool IsShowingDirectory(string path) =>
         !string.IsNullOrEmpty(CurrentPath) &&
@@ -148,17 +192,70 @@ public sealed partial class FilePanelViewModel : ViewModelBase
 
     private void ApplyListing(DirectoryListing listing, string? pathToSelect)
     {
+        // Refreshing the same folder keeps the marks of items that still exist.
+        var keepMarked = PathComparer.Equals(listing.Path, CurrentPath)
+            ? Items.Where(i => i.IsMarked).Select(i => i.FullPath).ToHashSet(PathComparer)
+            : null;
+
         var items = new FileItemViewModel[listing.Entries.Count];
         for (var i = 0; i < items.Length; i++)
         {
-            items[i] = new FileItemViewModel(listing.Entries[i]);
+            var entry = listing.Entries[i];
+            items[i] = new FileItemViewModel(entry) { IsMarked = keepMarked?.Contains(entry.FullPath) == true };
         }
 
         ErrorMessage = null;
         CurrentPath = listing.Path;
         Items = items;
         SelectedItem = FindItem(items, pathToSelect) ?? items.FirstOrDefault();
-        StatusText = $"{listing.DirectoryCount:N0} folder(s), {listing.FileCount:N0} file(s), {FormatSize(listing.TotalFileSize)}";
+        _listing = listing;
+        UpdateStatusText();
+    }
+
+    private void UpdateStatusText()
+    {
+        if (_listing is not { } listing)
+        {
+            return;
+        }
+
+        int markedFiles = 0, markedDirectories = 0;
+        long markedBytes = 0;
+        foreach (var item in Items)
+        {
+            if (!item.IsMarked)
+            {
+                continue;
+            }
+
+            if (item.IsDirectory)
+            {
+                markedDirectories++;
+            }
+            else
+            {
+                markedFiles++;
+                markedBytes += item.Entry.Size ?? 0;
+            }
+        }
+
+        StatusText = markedFiles + markedDirectories == 0
+            ? $"{listing.DirectoryCount:N0} folder(s), {listing.FileCount:N0} file(s), {FormatSize(listing.TotalFileSize)}"
+            : $"Selected {FormatSize(markedBytes)} / {FormatSize(listing.TotalFileSize)} in {markedFiles:N0} / {listing.FileCount:N0} file(s), "
+              + $"{markedDirectories:N0} / {listing.DirectoryCount:N0} folder(s)";
+    }
+
+    private int IndexOf(FileItemViewModel item)
+    {
+        for (var i = 0; i < Items.Count; i++)
+        {
+            if (ReferenceEquals(Items[i], item))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static FileItemViewModel? FindItem(FileItemViewModel[] items, string? path)

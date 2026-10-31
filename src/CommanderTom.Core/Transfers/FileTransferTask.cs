@@ -14,8 +14,13 @@ public sealed class FileTransferTask
     private long _lastNotifyTicks;
     private string? _currentItem;
     private string? _errorMessage;
+    private FileConflict? _pendingConflict;
 
-    public FileTransferTask(FileTransferType taskType, string sourcePath, string destinationPath)
+    public FileTransferTask(
+        FileTransferType taskType,
+        string sourcePath,
+        string destinationPath,
+        FileTransferBatch? batch = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
@@ -23,6 +28,7 @@ public sealed class FileTransferTask
         TaskType = taskType;
         SourcePath = Path.GetFullPath(sourcePath);
         DestinationPath = Path.GetFullPath(destinationPath);
+        Batch = batch ?? new FileTransferBatch();
     }
 
     /// <summary>Raised (throttled for progress) whenever status or progress changes.</summary>
@@ -73,6 +79,16 @@ public sealed class FileTransferTask
     {
         get => Volatile.Read(ref _errorMessage);
         internal set => Volatile.Write(ref _errorMessage, value);
+    }
+
+    /// <summary>Tasks enqueued together share a batch (conflict "... All" answers and cancel).</summary>
+    public FileTransferBatch Batch { get; }
+
+    /// <summary>Set while the task waits for an answer from the <see cref="IFileConflictResolver"/>.</summary>
+    public FileConflict? PendingConflict
+    {
+        get => Volatile.Read(ref _pendingConflict);
+        internal set => Volatile.Write(ref _pendingConflict, value);
     }
 
     /// <summary>True once a worker has picked the task up (distinguishes paused-while-queued from paused-while-running).</summary>

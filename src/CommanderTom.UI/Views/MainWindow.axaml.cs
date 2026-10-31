@@ -23,9 +23,11 @@ public partial class MainWindow : Window
     {
         base.OnDataContextChanged(e);
 
-        _viewModel?.TransferDialog.PropertyChanged -= OnTransferDialogPropertyChanged;
+        _viewModel?.TransferDialog.PropertyChanged -= OnDialogPropertyChanged;
+        _viewModel?.ConflictDialog.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel = DataContext as MainWindowViewModel;
-        _viewModel?.TransferDialog.PropertyChanged += OnTransferDialogPropertyChanged;
+        _viewModel?.TransferDialog.PropertyChanged += OnDialogPropertyChanged;
+        _viewModel?.ConflictDialog.PropertyChanged += OnDialogPropertyChanged;
     }
 
     protected override async void OnOpened(EventArgs e)
@@ -40,7 +42,7 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_viewModel is null || _viewModel.TransferDialog.IsOpen)
+        if (_viewModel is null || _viewModel.IsModalOpen)
         {
             return;
         }
@@ -52,17 +54,21 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnTransferDialogPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnDialogPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(TransferDialogViewModel.IsOpen) || _viewModel is null)
         {
             return;
         }
 
-        var isOpen = _viewModel.TransferDialog.IsOpen;
+        // Topmost open overlay gets the keyboard: conflict prompt, then F5/F6 dialog, then the active panel.
         Dispatcher.UIThread.Post(() =>
         {
-            if (isOpen)
+            if (_viewModel.ConflictDialog.IsOpen)
+            {
+                ConflictDialogView.FocusDefaultButton();
+            }
+            else if (_viewModel.TransferDialog.IsOpen)
             {
                 TransferDialogView.FocusTarget();
             }

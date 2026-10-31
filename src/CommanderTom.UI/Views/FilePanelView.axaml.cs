@@ -17,6 +17,9 @@ public partial class FilePanelView : UserControl
 
         AddHandler(GotFocusEvent, OnAnyGotFocus, RoutingStrategies.Bubble);
         AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
+
+        // Tunnel so the ListBox does not consume Space before we can use it for marking.
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         FileList.DoubleTapped += OnFileListDoubleTapped;
     }
 
@@ -66,6 +69,18 @@ public partial class FilePanelView : UserControl
                 FileList.Focus(NavigationMethod.Directional);
             }
         }, DispatcherPriority.Loaded);
+    }
+
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is null || e.KeyModifiers != KeyModifiers.None || e.Key is not (Key.Insert or Key.Space))
+        {
+            return;
+        }
+
+        _viewModel.ToggleMarkCommand.Execute(null);
+        FocusSelectedItem();
+        e.Handled = true;
     }
 
     private void OnAnyGotFocus(object? sender, FocusChangedEventArgs e) => _viewModel?.RequestActivation();

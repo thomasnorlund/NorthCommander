@@ -25,18 +25,20 @@ internal static class FileTransferEngine
 
     /// <summary>
     /// Copies a file or directory tree to <paramref name="destination"/>. Existing directories are merged;
-    /// existing files are never overwritten (the transfer fails instead).
+    /// for existing files the <see cref="FileOperationContext"/> decides (overwrite, skip, rename).
     /// </summary>
-    public static async Task CopyAsync(string source, string destination, FileOperationContext context)
+    public static async Task<CopyResult> CopyAsync(string source, string destination, FileOperationContext context)
     {
         EnsureValid(source, destination);
+        var result = new CopyResult();
 
         if (File.Exists(source))
         {
-            context.SetTotalBytes(new FileInfo(source).Length);
+            var length = new FileInfo(source).Length;
+            context.SetTotalBytes(length);
             CreateParentDirectory(destination);
-            await CopyFileAsync(source, destination, context).ConfigureAwait(false);
-            return;
+            await CopyFileResolvingConflictAsync(source, destination, length, context, result).ConfigureAwait(false);
+            return result;
         }
 
         var sourceDirectory = new DirectoryInfo(source);
@@ -54,7 +56,7 @@ internal static class FileTransferEngine
 
         context.SetTotalBytes(totalBytes);
         CreateParentDirectory(destination);
-        Directory.CreateDirectory(destination);
+        CreateDirectory(destination);
 
         // Recursive enumeration yields each directory before its contents.
         foreach (var info in entries)
@@ -62,14 +64,94 @@ internal static class FileTransferEngine
             await context.CheckpointAsync().ConfigureAwait(false);
 
             var target = Path.Combine(destination, Path.GetRelativePath(sourceDirectory.FullName, info.FullName));
-            if (info is FileInfo)
+            if (info is FileInfo file)
             {
-                await CopyFileAsync(info.FullName, target, context).ConfigureAwait(false);
+                await CopyFileResolvingConflictAsync(file.FullName, target, file.Length, context, result).ConfigureAwait(false);
             }
             else
             {
-                Directory.CreateDirectory(target);
+                CreateDirectory(target);
             }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Where a single file should go given that <paramref name="destination"/> may exist:
+    /// null when the user skips it.
+    /// </summary>
+    public static async Task<FileTarget?> ResolveFileTargetAsync(string source, string destination, FileOperationContext context)
+    {
+        if (Directory.Exists(destination))
+        {
+            throw new IOException($"A folder with the same name already exists: {destination}");
+        }
+
+        if (!File.Exists(destination))
+        {
+            return new FileTarget(destination, Overwrite: false);
+        }
+
+        return await context.ResolveConflictAsync(source, destination).ConfigureAwait(false) switch
+        {
+            FileConflictResolution.Overwrite => new FileTarget(destination, Overwrite: true),
+            FileConflictResolution.Rename => new FileTarget(FileTransferPaths.GetUniquePath(destination), Overwrite: false),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Streams <paramref name="source"/> to <paramref name="destination"/>. When overwriting, the data goes to a
+    /// temporary file first so the existing file survives a failed or canceled copy.
+    /// </summary>
+    public static async Task CopyFileAsync(string source, string destination, bool overwrite, FileOperationContext context)
+    {
+        context.SetCurrentItem(source);
+        var writePath = overwrite ? GetTemporaryPath(destination) : destination;
+        var created = false;
+        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+        try
+        {
+            await using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var output = new FileStream(writePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 0,
+                             FileOptions.Asynchronous))
+            {
+                created = true;
+                int read;
+                while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), context.CancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, read), context.CancellationToken).ConfigureAwait(false);
+                    context.ReportBytesTransferred(read);
+                    await context.CheckpointAsync().ConfigureAwait(false);
+                }
+            }
+
+            File.SetLastWriteTimeUtc(writePath, File.GetLastWriteTimeUtc(source));
+            if (OperatingSystem.IsWindows())
+            {
+                File.SetAttributes(writePath, File.GetAttributes(source));
+            }
+
+            if (overwrite)
+            {
+                ClearReadOnly(destination);
+                File.Move(writePath, destination, overwrite: true);
+            }
+        }
+        catch
+        {
+            if (created)
+            {
+                TryDeleteFile(writePath);
+            }
+
+            throw;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -93,47 +175,53 @@ internal static class FileTransferEngine
         Directory.Delete(path, recursive: true);
     }
 
-    private static async Task CopyFileAsync(string source, string destination, FileOperationContext context)
+    /// <summary>
+    /// After a partial move: deletes the files that were copied, then every directory under (and including)
+    /// <paramref name="root"/> that ended up empty. Skipped files and their folders stay.
+    /// </summary>
+    public static void DeleteMoved(string root, IEnumerable<string> copiedFiles)
+    {
+        foreach (var file in copiedFiles)
+        {
+            ClearReadOnly(file);
+            File.Delete(file);
+        }
+
+        var directories = Directory.EnumerateDirectories(root, "*", RecursiveOptions)
+            .OrderByDescending(d => d.Length)
+            .Append(root);
+        foreach (var directory in directories)
+        {
+            if (!Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    private static async Task CopyFileResolvingConflictAsync(
+        string source, string destination, long length, FileOperationContext context, CopyResult result)
     {
         context.SetCurrentItem(source);
-        var created = false;
-        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
-        try
+        if (await ResolveFileTargetAsync(source, destination, context).ConfigureAwait(false) is not { } target)
         {
-            await using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0,
-                             FileOptions.Asynchronous | FileOptions.SequentialScan))
-            await using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 0,
-                             FileOptions.Asynchronous))
-            {
-                created = true;
-                int read;
-                while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), context.CancellationToken).ConfigureAwait(false)) > 0)
-                {
-                    await output.WriteAsync(buffer.AsMemory(0, read), context.CancellationToken).ConfigureAwait(false);
-                    context.ReportBytesTransferred(read);
-                    await context.CheckpointAsync().ConfigureAwait(false);
-                }
-            }
+            result.SkippedCount++;
+            context.ReportBytesTransferred(length);
+            return;
+        }
 
-            File.SetLastWriteTimeUtc(destination, File.GetLastWriteTimeUtc(source));
-            if (OperatingSystem.IsWindows())
-            {
-                File.SetAttributes(destination, File.GetAttributes(source));
-            }
-        }
-        catch
-        {
-            if (created)
-            {
-                TryDeleteFile(destination);
-            }
+        await CopyFileAsync(source, target.Path, target.Overwrite, context).ConfigureAwait(false);
+        result.CopiedFiles.Add(source);
+    }
 
-            throw;
-        }
-        finally
+    private static void CreateDirectory(string path)
+    {
+        if (File.Exists(path))
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            throw new IOException($"A file with the same name already exists: {path}");
         }
+
+        Directory.CreateDirectory(path);
     }
 
     private static void CreateParentDirectory(string path)
@@ -143,6 +231,11 @@ internal static class FileTransferEngine
             Directory.CreateDirectory(parent);
         }
     }
+
+    private static string GetTemporaryPath(string destination) =>
+        Path.Combine(
+            Path.GetDirectoryName(destination) ?? string.Empty,
+            $".{Path.GetFileName(destination)}.{Guid.NewGuid():N}.ctpart");
 
     private static void ClearReadOnly(string file)
     {
@@ -163,4 +256,14 @@ internal static class FileTransferEngine
         {
         }
     }
+}
+
+internal readonly record struct FileTarget(string Path, bool Overwrite);
+
+internal sealed class CopyResult
+{
+    /// <summary>Source files that were actually copied (a move deletes only these).</summary>
+    public List<string> CopiedFiles { get; } = [];
+
+    public int SkippedCount { get; set; }
 }
