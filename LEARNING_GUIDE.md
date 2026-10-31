@@ -99,7 +99,24 @@ compressed TARs and solid RARs are read front to back, once per extraction. Only
 adding files rebuilds the archive into a temporary file and swaps it in only on success. Entries with
 `..` or absolute paths are ignored (zip-slip protection).
 
-### 2.6 Multi-Rename (Ctrl+M) and Sync (Ctrl+Shift+S)
+### 2.6 Drag and drop
+
+All drags, between panels or with other apps, use the operating system's drag and drop. Dragging
+out hands real files to Explorer, the Desktop or any other app. Files dropped onto a panel, a folder
+row or an open ZIP go through the normal Copy/Move dialog and the background queue (Shift = Move).
+NorthCommander always reports the drop as a copy to the source app, so Explorer never deletes the
+originals before the move is confirmed and has run. Files inside archives can only be dropped onto
+NorthCommander panels, not dragged out.
+
+### 2.7 Folder sizes
+
+`FolderSizeCalculator` adds up a folder recursively on the thread pool, skipping folders it can't
+read and not following symlinks/junctions. Inside archives it sums the entries below the virtual
+path. Each tab keeps a queue of folders to measure (Space, F3 on a folder, Alt+Shift+Enter for all),
+works through it in the background and cancels it on Esc or when you navigate away. The result
+replaces `<DIR>` in the size column and is included in the status bar summary.
+
+### 2.8 Multi-Rename (Ctrl+M) and Sync (Ctrl+Shift+S)
 
 - `RenameMask` expands Total Commander tokens (`[N]`, `[N2-5]`, `[E]`, `[C]`, ...). `MultiRename`
   previews every new name, flags conflicts and renames in two phases so swaps (`a→b`, `b→a`) work.
@@ -107,20 +124,20 @@ adding files rebuilds the archive into a temporary file and swaps it in only on 
   for FAT32) and size, producing `->`, `<-`, `!=` or `=`. Synchronize turns the arrows into queue
   operations.
 
-### 2.7 Command line
+### 2.9 Command line
 
 `CommandRunner` runs the typed command via `cmd.exe /c` in the active panel's folder, without a
 console window, and shows the output in the Lister. `cd` is handled by the panel itself, because a
 `cd` in a child process would have no effect.
 
-### 2.8 Portability
+### 2.10 Portability
 
 `SettingsStore` saves tabs, locks, window state, masks and sync options to
 `NorthCommander.config.json` next to `NorthCommander.exe` (written atomically via a temp file).
 The app never uses AppData or the registry. `install.ps1` only adds shortcuts and a user PATH
 entry; `uninstall.ps1` removes them again.
 
-### 2.9 Look and feel
+### 2.11 Look and feel
 
 All colours are defined in `src/NorthCommander.UI/Themes/RetroTheme.axaml` using the Norton
 Commander palette: blue `#0000A8` panels, yellow `#FFFF55` marked items, cyan `#55FFFF` focus.
@@ -159,6 +176,9 @@ them, and reported back. The git history shows each step as one commit.
 | 10 | Directory synchronization | `Directory synchronization` |
 | 11 | Command line, F-key bar, release workflow | `Command line` |
 | 12 | Portable settings, install/uninstall scripts, PATH | `Portable settings`, `install.ps1` |
+| 13 | Drag and drop with Explorer and other apps | `Drag and drop` |
+| 14 | 7z, RAR and TAR archives (read-only) | `Browse 7z, RAR and TAR` |
+| 15 | Folder size calculation | `Folder size calculation` |
 
 ### 4.2 What worked well
 
@@ -168,7 +188,7 @@ them, and reported back. The git history shows each step as one commit.
 2. **Fix the architecture early.** The first prompt set the stack and the Core/UI split. Every later
    feature had an obvious place to live, and Core stayed testable.
 3. **Tests and a clean build as the gate.** Warnings are errors, and every step ended with
-   `dotnet build` and `dotnet test` passing (87 tests at the end). Regressions showed up
+   `dotnet build` and `dotnet test` passing (108 tests at the end). Regressions showed up
    immediately instead of three features later.
 4. **Try it like a user.** Beyond unit tests, the AI ran the app on its machine and tried each
    feature by hand (opening a 2.4 GB file, dragging between panels, renaming real files) and sent
@@ -206,4 +226,7 @@ and wire up <shortcut>.
 
 ## 5. Where to go next
 
-- Recycle Bin delete and the full Explorer context menu (Windows-only).
+- A password prompt for encrypted archives (they currently show an error).
+- Writing 7z archives (would need 7-Zip's native `7z.dll`); RAR creation is proprietary.
+- The full Explorer context menu (Windows-only).
+- Recycle Bin delete was deliberately left out for now: F8 deletes permanently, after confirmation.
