@@ -1,5 +1,6 @@
 using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
+using NorthCommander.Core.Settings;
 using NorthCommander.Core.Sync;
 using NorthCommander.UI.Services;
 using NorthCommander.Core.Transfers;
@@ -61,9 +62,55 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public FilePanelViewModel InactivePanel => ReferenceEquals(ActivePanel, LeftPanel) ? RightPanel : LeftPanel;
 
-    public Task InitializeAsync() => Task.WhenAll(
-        LeftPanel.LoadAsync(GetDefaultLeftPath()),
-        RightPanel.LoadAsync(GetDefaultRightPath()));
+    /// <summary>Loaded from / saved to NorthCommander.config.json next to the executable.</summary>
+    public AppSettings Settings { get; set; } = new();
+
+    public Task InitializeAsync()
+    {
+        var rename = Settings.MultiRename;
+        MultiRename.NameMask = rename.NameMask;
+        MultiRename.ExtensionMask = rename.ExtensionMask;
+        MultiRename.SearchText = rename.SearchText;
+        MultiRename.ReplaceText = rename.ReplaceText;
+        MultiRename.CounterStart = rename.CounterStart;
+        MultiRename.CounterStep = rename.CounterStep;
+        MultiRename.CounterDigits = rename.CounterDigits;
+        SyncDirectories.IncludeSubdirectories = Settings.Sync.IncludeSubdirectories;
+        SyncDirectories.UseTimeTolerance = Settings.Sync.UseTimeTolerance;
+        SyncDirectories.HideIdentical = Settings.Sync.HideIdentical;
+        if (Settings.ActivePanel == "Right")
+        {
+            ActivePanel = RightPanel;
+        }
+
+        return Task.WhenAll(
+            LeftPanel.RestoreAsync(Settings.Left, GetDefaultLeftPath()),
+            RightPanel.RestoreAsync(Settings.Right, GetDefaultRightPath()));
+    }
+
+    /// <summary>Copies the current tabs, masks and options into <see cref="Settings"/>.</summary>
+    public void CaptureSettings()
+    {
+        Settings.Left = LeftPanel.CaptureSettings();
+        Settings.Right = RightPanel.CaptureSettings();
+        Settings.ActivePanel = ReferenceEquals(ActivePanel, RightPanel) ? "Right" : "Left";
+        Settings.MultiRename = new RenameSettings
+        {
+            NameMask = MultiRename.NameMask,
+            ExtensionMask = MultiRename.ExtensionMask,
+            SearchText = MultiRename.SearchText,
+            ReplaceText = MultiRename.ReplaceText,
+            CounterStart = (int)(MultiRename.CounterStart ?? 1),
+            CounterStep = (int)(MultiRename.CounterStep ?? 1),
+            CounterDigits = (int)(MultiRename.CounterDigits ?? 1),
+        };
+        Settings.Sync = new SyncSettings
+        {
+            IncludeSubdirectories = SyncDirectories.IncludeSubdirectories,
+            UseTimeTolerance = SyncDirectories.UseTimeTolerance,
+            HideIdentical = SyncDirectories.HideIdentical,
+        };
+    }
 
     [RelayCommand]
     private void SwitchActivePanel() => ActivePanel = InactivePanel;

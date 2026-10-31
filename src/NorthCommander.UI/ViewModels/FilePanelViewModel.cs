@@ -1,3 +1,5 @@
+using NorthCommander.Core.Archives;
+using NorthCommander.Core.Settings;
 using System.Collections.ObjectModel;
 using NorthCommander.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -52,6 +54,40 @@ public sealed partial class FilePanelViewModel : ViewModelBase
     public void RequestActivation() => ActivationRequested?.Invoke(this, EventArgs.Empty);
 
     public Task LoadAsync(string path) => SelectedTab.LoadAsync(path);
+
+    public PanelSettings CaptureSettings() => new()
+    {
+        Tabs = Tabs.Select(t => new TabSettings { Path = t.CurrentPath, IsLocked = t.IsLocked }).ToList(),
+        SelectedIndex = Tabs.IndexOf(SelectedTab),
+    };
+
+    /// <summary>Reopens saved tabs; folders that no longer exist fall back to <paramref name="fallbackPath"/>.</summary>
+    public async Task RestoreAsync(PanelSettings? settings, string fallbackPath)
+    {
+        var saved = settings?.Tabs.Where(t => !string.IsNullOrWhiteSpace(t.Path)).ToList() ?? [];
+        if (saved.Count == 0)
+        {
+            await LoadAsync(fallbackPath);
+            return;
+        }
+
+        var tabs = new List<TabViewModel> { SelectedTab };
+        for (var i = 1; i < saved.Count; i++)
+        {
+            tabs.Add(CreateTab(Tabs.Count, string.Empty));
+        }
+
+        await Task.WhenAll(tabs.Select((tab, i) =>
+            tab.LoadAsync(Directory.Exists(saved[i].Path) || ZipArchiveService.IsArchivePath(saved[i].Path) ? saved[i].Path : fallbackPath)));
+
+        // Lock only after loading: a locked tab refuses to change its folder.
+        for (var i = 0; i < tabs.Count; i++)
+        {
+            tabs[i].IsLocked = saved[i].IsLocked;
+        }
+
+        SelectedTab = tabs[Math.Clamp(settings!.SelectedIndex, 0, tabs.Count - 1)];
+    }
 
     /// <summary>Ctrl+T: new tab next to the current one, showing the same folder.</summary>
     [RelayCommand]

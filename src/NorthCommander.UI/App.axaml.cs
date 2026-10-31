@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
+using NorthCommander.Core.Settings;
 using NorthCommander.Core.Transfers;
 using NorthCommander.UI.ViewModels;
 using NorthCommander.UI.Views;
@@ -25,10 +26,19 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            // Portable: settings live next to NorthCommander.exe, never in AppData or the registry.
+            var settingsPath = SettingsStore.DefaultPath;
+            var viewModel = Services.GetRequiredService<MainWindowViewModel>();
+            viewModel.Settings = SettingsStore.Load(settingsPath);
+            var window = new MainWindow { DataContext = viewModel };
+            window.ApplySettings(viewModel.Settings.Window);
+            window.Closing += (_, _) =>
             {
-                DataContext = Services.GetRequiredService<MainWindowViewModel>(),
+                window.CaptureSettings(viewModel.Settings.Window);
+                viewModel.CaptureSettings();
+                SettingsStore.TrySave(viewModel.Settings, settingsPath);
             };
+            desktop.MainWindow = window;
 
             // Disposing the provider cancels pending transfers and cleans up partial files.
             desktop.Exit += (_, _) => Services.Dispose();

@@ -36,7 +36,7 @@ jobs:
             -p:DebugType=None `
             -p:Version=$version
           Remove-Item publish/*.pdb -ErrorAction SilentlyContinue
-          Copy-Item README.md, LICENSE publish/
+          Copy-Item README.md, LICENSE, install.ps1, uninstall.ps1 publish/
           Compress-Archive -Path publish/* -DestinationPath "NorthCommander-${{ github.ref_name }}-win-x64.zip"
 
       - uses: actions/upload-artifact@v4

@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using NorthCommander.Core.Settings;
 using NorthCommander.UI.ViewModels;
 
 namespace NorthCommander.UI.Views;
@@ -18,6 +20,40 @@ public partial class MainWindow : Window
         // Tunnel so Tab is intercepted before Avalonia's focus navigation consumes it.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>Restores size/position (only if still on a connected screen) and maximized state.</summary>
+    public void ApplySettings(WindowSettings settings)
+    {
+        if (settings.Width is double width && settings.Height is double height && width >= MinWidth && height >= MinHeight)
+        {
+            Width = width;
+            Height = height;
+        }
+
+        if (settings.X is int x && settings.Y is int y
+            && Screens.All.Any(s => s.WorkingArea.Contains(new PixelPoint(x + 40, y + 20))))
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Position = new PixelPoint(x, y);
+        }
+
+        if (settings.IsMaximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    public void CaptureSettings(WindowSettings settings)
+    {
+        settings.IsMaximized = WindowState == WindowState.Maximized;
+        if (WindowState == WindowState.Normal)
+        {
+            settings.Width = Width;
+            settings.Height = Height;
+            settings.X = Position.X;
+            settings.Y = Position.Y;
+        }
     }
 
     protected override void OnDataContextChanged(EventArgs e)
