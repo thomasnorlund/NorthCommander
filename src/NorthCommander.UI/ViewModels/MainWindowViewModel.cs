@@ -141,12 +141,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>F3: opens the Lister for the file under the cursor.</summary>
+    /// <summary>F3: opens the Lister for the file under the cursor, or calculates the size of the folder under it.</summary>
     [RelayCommand]
     private async Task ViewAsync()
     {
-        if (IsModalOpen || ActivePanel.SelectedTab is not { SelectedItem: { IsDirectory: false, IsParentLink: false } item } tab)
+        if (IsModalOpen || ActivePanel.SelectedTab is not { SelectedItem: { IsParentLink: false } item } tab)
         {
+            return;
+        }
+
+        if (item.IsDirectory)
+        {
+            tab.CalculateFolderSizes([item]);
             return;
         }
 

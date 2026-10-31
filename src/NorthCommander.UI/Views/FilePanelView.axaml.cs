@@ -158,10 +158,28 @@ public partial class FilePanelView : UserControl
             return;
         }
 
+        var tab = _viewModel.SelectedTab;
         if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Insert or Key.Space)
         {
-            _viewModel.SelectedTab.ToggleMarkCommand.Execute(null);
+            if (e.Key == Key.Space)
+            {
+                tab.ToggleMarkAndCalculateSize();
+            }
+            else
+            {
+                tab.ToggleMarkCommand.Execute(null);
+            }
+
             FocusSelectedItem();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter && e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift))
+        {
+            tab.CalculateFolderSizes(tab.Items);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && tab.CancelSizeCalculation())
+        {
             e.Handled = true;
         }
         else if ((e.Key == Key.Apps && e.KeyModifiers == KeyModifiers.None)

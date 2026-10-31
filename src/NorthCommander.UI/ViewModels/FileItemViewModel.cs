@@ -17,6 +17,11 @@ public sealed partial class FileItemViewModel(FileSystemEntry entry) : Observabl
     [ObservableProperty]
     public partial bool IsMarked { get; set; }
 
+    /// <summary>Folder size from Space / F3 / Alt+Shift+Enter; shown instead of &lt;DIR&gt;.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeText))]
+    public partial long? CalculatedSize { get; set; }
+
     public string FullPath => Entry.FullPath;
 
     public bool IsDirectory => Entry.IsDirectory;
@@ -35,7 +40,7 @@ public sealed partial class FileItemViewModel(FileSystemEntry entry) : Observabl
     public string SizeText => Entry.Kind switch
     {
         FileSystemEntryKind.ParentLink => "<UP>",
-        FileSystemEntryKind.Directory => "<DIR>",
+        FileSystemEntryKind.Directory => CalculatedSize?.ToString("N0", CultureInfo.CurrentCulture) ?? "<DIR>",
         _ => Entry.Size?.ToString("N0", CultureInfo.CurrentCulture) ?? string.Empty,
     };
 

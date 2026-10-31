@@ -27,8 +27,9 @@ dotnet test
 | `Enter` / double-click | Open folder (or launch file with its default app) |
 | `Backspace` | Go to parent folder |
 | `Ctrl+R` | Refresh panel |
-| `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red |
-| `F3` | Lister: view the file under the cursor (`1` Text, `2` Hex, `3` Image, `W` wrap, `Esc` close) |
+| `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red. `Space` on a folder also calculates its size |
+| `F3` | Lister: view the file under the cursor (`1` Text, `2` Hex, `3` Image, `W` wrap, `Esc` close); on a folder, calculate its size |
+| `Alt+Shift+Enter` | Calculate the size of every folder in the panel (in the background; `Esc` cancels) |
 | `F5` | Copy marked items (or the item under the cursor) to the other panel (confirm target in overlay) |
 | `F6` | Move/rename marked items (or the item under the cursor) to the other panel |
 | `Shift+F6` / `F2` | Rename the item under the cursor |

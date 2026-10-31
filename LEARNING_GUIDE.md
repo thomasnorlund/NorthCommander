@@ -207,4 +207,3 @@ and wire up <shortcut>.
 ## 5. Where to go next
 
 - Recycle Bin delete and the full Explorer context menu (Windows-only).
-- Folder size calculation on F3 / Space, as in Total Commander.

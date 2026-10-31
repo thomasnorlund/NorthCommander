@@ -16,6 +16,8 @@ public sealed partial class TabViewModel : ViewModelBase
     private readonly IDirectoryService _directoryService;
     private CancellationTokenSource? _loadCts;
     private DirectoryListing? _listing;
+    private readonly Queue<string> _sizeQueue = new();
+    private CancellationTokenSource? _sizeCts;
 
     /// <param name="initialPath">Shown on the tab header right away, before the first listing arrives.</param>
     public TabViewModel(IDirectoryService directoryService, string initialPath = "")
@@ -83,6 +85,9 @@ public sealed partial class TabViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? ErrorMessage { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsCalculatingSizes { get; private set; }
+
     /// <summary>
     /// Full paths of the items an operation (F5/F6, ...) should act on: all marked items,
     /// or the item under the cursor when nothing is marked.
@@ -117,6 +122,84 @@ public sealed partial class TabViewModel : ViewModelBase
         if (index >= 0 && index < Items.Count - 1)
         {
             SelectedItem = Items[index + 1];
+        }
+    }
+
+    /// <summary>Space: like Insert, but a folder that becomes marked also gets its size calculated.</summary>
+    public void ToggleMarkAndCalculateSize()
+    {
+        var item = SelectedItem;
+        ToggleMark();
+        if (item is { IsMarked: true, IsDirectory: true })
+        {
+            CalculateFolderSizes([item]);
+        }
+    }
+
+    /// <summary>Queues folders for background size calculation (F3 on a folder, Space, Alt+Shift+Enter).</summary>
+    public void CalculateFolderSizes(IEnumerable<FileItemViewModel> items)
+    {
+        foreach (var item in items)
+        {
+            if (item is { IsDirectory: true, IsParentLink: false, CalculatedSize: null } && !_sizeQueue.Contains(item.FullPath))
+            {
+                _sizeQueue.Enqueue(item.FullPath);
+            }
+        }
+
+        if (_sizeCts is null && _sizeQueue.Count > 0)
+        {
+            _ = RunSizeQueueAsync();
+        }
+    }
+
+    /// <summary>Esc: stops the size calculation. False when nothing was running.</summary>
+    public bool CancelSizeCalculation()
+    {
+        _sizeQueue.Clear();
+        if (_sizeCts is null)
+        {
+            return false;
+        }
+
+        _sizeCts.Cancel();
+        return true;
+    }
+
+    private async Task RunSizeQueueAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        _sizeCts = cts;
+        IsCalculatingSizes = true;
+        UpdateStatusText();
+        try
+        {
+            // Runs on the UI thread between awaits, so the queue needs no locking.
+            while (_sizeQueue.TryDequeue(out var path))
+            {
+                try
+                {
+                    var size = await FolderSizeCalculator.CalculateAsync(path, cts.Token);
+                    if (FindItem(Items, path) is { } item)
+                    {
+                        item.CalculatedSize = size.Bytes;
+                        UpdateStatusText();
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Vanished or unreadable folder: leave it as <DIR>.
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            _sizeCts = null;
+            IsCalculatingSizes = false;
+            UpdateStatusText();
         }
     }
 
@@ -280,16 +363,26 @@ public sealed partial class TabViewModel : ViewModelBase
 
     private void ApplyListing(DirectoryListing listing, string? pathToSelect)
     {
-        // Refreshing the same folder keeps the marks of items that still exist.
-        var keepMarked = PathComparer.Equals(listing.Path, CurrentPath)
-            ? Items.Where(i => i.IsMarked).Select(i => i.FullPath).ToHashSet(PathComparer)
+        // Refreshing the same folder keeps the marks and calculated sizes of items that still exist.
+        var sameFolder = PathComparer.Equals(listing.Path, CurrentPath);
+        var keepMarked = sameFolder ? Items.Where(i => i.IsMarked).Select(i => i.FullPath).ToHashSet(PathComparer) : null;
+        var keepSizes = sameFolder
+            ? Items.Where(i => i.CalculatedSize is not null).ToDictionary(i => i.FullPath, i => i.CalculatedSize, PathComparer)
             : null;
+        if (!sameFolder)
+        {
+            CancelSizeCalculation();
+        }
 
         var items = new FileItemViewModel[listing.Entries.Count];
         for (var i = 0; i < items.Length; i++)
         {
             var entry = listing.Entries[i];
-            items[i] = new FileItemViewModel(entry) { IsMarked = keepMarked?.Contains(entry.FullPath) == true };
+            items[i] = new FileItemViewModel(entry)
+            {
+                IsMarked = keepMarked?.Contains(entry.FullPath) == true,
+                CalculatedSize = entry.IsDirectory ? keepSizes?.GetValueOrDefault(entry.FullPath) : null,
+            };
         }
 
         ErrorMessage = null;
@@ -309,9 +402,10 @@ public sealed partial class TabViewModel : ViewModelBase
         }
 
         int markedFiles = 0, markedDirectories = 0;
-        long markedBytes = 0;
+        long markedBytes = 0, totalBytes = listing.TotalFileSize;
         foreach (var item in Items)
         {
+            totalBytes += item.CalculatedSize ?? 0;
             if (!item.IsMarked)
             {
                 continue;
@@ -320,6 +414,7 @@ public sealed partial class TabViewModel : ViewModelBase
             if (item.IsDirectory)
             {
                 markedDirectories++;
+                markedBytes += item.CalculatedSize ?? 0;
             }
             else
             {
@@ -328,10 +423,11 @@ public sealed partial class TabViewModel : ViewModelBase
             }
         }
 
-        StatusText = markedFiles + markedDirectories == 0
-            ? $"{listing.DirectoryCount:N0} folder(s), {listing.FileCount:N0} file(s), {FormatSize(listing.TotalFileSize)}"
-            : $"Selected {FormatSize(markedBytes)} / {FormatSize(listing.TotalFileSize)} in {markedFiles:N0} / {listing.FileCount:N0} file(s), "
-              + $"{markedDirectories:N0} / {listing.DirectoryCount:N0} folder(s)";
+        var calculating = IsCalculatingSizes ? "Calculating folder sizes (Esc cancels)... " : string.Empty;
+        StatusText = calculating + (markedFiles + markedDirectories == 0
+            ? $"{listing.DirectoryCount:N0} folder(s), {listing.FileCount:N0} file(s), {FormatSize(totalBytes)}"
+            : $"Selected {FormatSize(markedBytes)} / {FormatSize(totalBytes)} in {markedFiles:N0} / {listing.FileCount:N0} file(s), "
+              + $"{markedDirectories:N0} / {listing.DirectoryCount:N0} folder(s)");
     }
 
     private int IndexOf(FileItemViewModel item)
@@ -347,7 +443,7 @@ public sealed partial class TabViewModel : ViewModelBase
         return -1;
     }
 
-    private static FileItemViewModel? FindItem(FileItemViewModel[] items, string? path)
+    private static FileItemViewModel? FindItem(IReadOnlyList<FileItemViewModel> items, string? path)
     {
         if (string.IsNullOrEmpty(path))
         {
@@ -355,7 +451,7 @@ public sealed partial class TabViewModel : ViewModelBase
         }
 
         var normalized = Path.TrimEndingDirectorySeparator(path);
-        return Array.Find(items, i => !i.IsParentLink && PathComparer.Equals(i.FullPath, normalized));
+        return items.FirstOrDefault(i => !i.IsParentLink && PathComparer.Equals(i.FullPath, normalized));
     }
 
     private void OpenWithShell(string path)
