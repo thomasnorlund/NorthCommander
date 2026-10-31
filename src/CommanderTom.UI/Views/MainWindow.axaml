@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:CommanderTom.UI.ViewModels"
+        xmlns:views="using:CommanderTom.UI.Views"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
+        x:Class="CommanderTom.UI.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/app.ico"
+        Title="CommanderTom"
+        Width="1200" Height="720"
+        MinWidth="640" MinHeight="400"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+        <!-- Key hint bar (Total Commander style) -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{StaticResource InactiveHeaderBrush}"
+                Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="24">
+                <StackPanel.Styles>
+                    <Style Selector="TextBlock">
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="Opacity" Value="0.8" />
+                    </Style>
+                </StackPanel.Styles>
+                <TextBlock Text="Tab  Switch panel" />
+                <TextBlock Text="↑ ↓ PgUp PgDn Home End  Navigate" />
+                <TextBlock Text="Enter  Open" />
+                <TextBlock Text="Backspace  Parent folder" />
+                <TextBlock Text="Ctrl+R  Refresh" />
+            </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="*,6,*" Margin="4">
+            <views:FilePanelView x:Name="LeftPanelView"
+                                 Grid.Column="0"
+                                 DataContext="{Binding LeftPanel}" />
+            <GridSplitter Grid.Column="1"
+                          Background="Transparent"
+                          ResizeDirection="Columns" />
+            <views:FilePanelView x:Name="RightPanelView"
+                                 Grid.Column="2"
+                                 DataContext="{Binding RightPanel}" />
+        </Grid>
+    </DockPanel>
+</Window>

@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:CommanderTom.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="600"
+             x:Class="CommanderTom.UI.Views.FilePanelView"
+             x:DataType="vm:FilePanelViewModel">
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding OpenSelectedCommand}" />
+        <KeyBinding Gesture="Back" Command="{Binding GoUpCommand}" />
+        <KeyBinding Gesture="Ctrl+R" Command="{Binding RefreshCommand}" />
+    </UserControl.KeyBindings>
+
+    <UserControl.Styles>
+        <!-- Panel frame: thin and neutral when inactive, thick accent when active -->
+        <Style Selector="Border#PanelFrame">
+            <Setter Property="BorderBrush" Value="{StaticResource InactivePanelBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="1" />
+        </Style>
+        <Style Selector="Border#PanelFrame.active">
+            <Setter Property="BorderBrush" Value="{StaticResource ActivePanelBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <!-- Path header -->
+        <Style Selector="Border#PathHeader">
+            <Setter Property="Background" Value="{StaticResource InactiveHeaderBrush}" />
+        </Style>
+        <Style Selector="Border#PanelFrame.active Border#PathHeader">
+            <Setter Property="Background" Value="{StaticResource ActivePanelBrush}" />
+        </Style>
+        <Style Selector="Border#PanelFrame.active Border#PathHeader TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource ActivePanelForegroundBrush}" />
+        </Style>
+
+        <!-- Compact rows -->
+        <Style Selector="ListBox#FileList ListBoxItem">
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+
+        <!-- Selection: accent in the active panel, muted gray in the inactive one -->
+        <Style Selector="Border#PanelFrame.active ListBox#FileList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource ActivePanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource ActivePanelForegroundBrush}" />
+        </Style>
+        <Style Selector="Border#PanelFrame:not(.active) ListBox#FileList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource InactiveSelectionBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.cell">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.columnHeader">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Opacity" Value="0.75" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border x:Name="PanelFrame"
+            Classes.active="{Binding IsActive}"
+            CornerRadius="2">
+        <DockPanel>
+            <!-- Current path -->
+            <Border x:Name="PathHeader" DockPanel.Dock="Top" Padding="8,5">
+                <TextBlock Text="{Binding CurrentPath}"
+                           FontWeight="SemiBold"
+                           TextTrimming="PrefixCharacterEllipsis" />
+            </Border>
+
+            <ProgressBar DockPanel.Dock="Top"
+                         IsIndeterminate="True"
+                         IsVisible="{Binding IsLoading}"
+                         MinHeight="2" Height="2" />
+
+            <!-- Column headers -->
+            <Grid DockPanel.Dock="Top"
+                  ColumnDefinitions="*,70,110,140"
+                  Margin="12,4,12,2">
+                <TextBlock Grid.Column="0" Classes="columnHeader" Text="Name" />
+                <TextBlock Grid.Column="1" Classes="columnHeader" Text="Ext" />
+                <TextBlock Grid.Column="2" Classes="columnHeader" Text="Size" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="3" Classes="columnHeader" Text="Date" Margin="12,0,0,0" />
+            </Grid>
+
+            <!-- Status bar -->
+            <Border DockPanel.Dock="Bottom" Padding="8,3"
+                    Background="{StaticResource InactiveHeaderBrush}">
+                <Panel>
+                    <TextBlock Text="{Binding StatusText}" FontSize="12" />
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               Foreground="{StaticResource ErrorBrush}"
+                               HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis"
+                               FontSize="12" />
+                </Panel>
+            </Border>
+
+            <!-- File list (virtualized) -->
+            <ListBox x:Name="FileList"
+                     ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding SelectedItem}"
+                     SelectionMode="Single"
+                     Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FileItemViewModel">
+                        <Grid ColumnDefinitions="*,70,110,140" Opacity="{Binding Opacity}">
+                            <TextBlock Grid.Column="0" Classes="cell" Text="{Binding DisplayName}" />
+                            <TextBlock Grid.Column="1" Classes="cell" Text="{Binding Extension}" />
+                            <TextBlock Grid.Column="2" Classes="cell" Text="{Binding SizeText}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="3" Classes="cell" Text="{Binding DateText}" Margin="12,0,0,0" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Border>
+</UserControl>
