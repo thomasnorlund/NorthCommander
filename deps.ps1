@@ -36,7 +36,7 @@ param(
     [switch]$Yes,
     [ValidateSet('', 'App', 'User', 'Machine')]
     [string]$Scope = '',
-    [string]$Location = $PSScriptRoot
+    [string]$Location = ''
 )
 
 Set-StrictMode -Version Latest
@@ -282,6 +282,8 @@ function Invoke-NcDependencyCli([string]$Path, [bool]$CheckOnly, [bool]$NoPrompt
 
 # When dot-sourced (setup.ps1 does that) only the functions above are defined.
 if ($MyInvocation.InvocationName -ne '.') {
+    # Windows PowerShell 5.1 leaves $PSScriptRoot empty in parameter defaults, so resolve it here.
+    if (-not $Location) { $Location = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path } }
     $script:NcExitCode = 1
     Invoke-NcDependencyCli -Path $Location -CheckOnly $Check.IsPresent -NoPrompt $Yes.IsPresent -TargetScope $Scope
     exit $script:NcExitCode
