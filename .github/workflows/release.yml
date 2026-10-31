@@ -1,0 +1,50 @@
+name: release
+
+# Pushing a tag like v1.0.0 builds a self-contained Windows x64 NorthCommander.exe,
+# zips it and attaches it to a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Publish win-x64
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          dotnet publish src/NorthCommander.UI/NorthCommander.UI.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishReadyToRun=true `
+            -p:DebugType=None `
+            -p:Version=$version
+          Remove-Item publish/*.pdb -ErrorAction SilentlyContinue
+          Copy-Item README.md, LICENSE publish/
+          Compress-Archive -Path publish/* -DestinationPath "NorthCommander-${{ github.ref_name }}-win-x64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NorthCommander-${{ github.ref_name }}-win-x64
+          path: NorthCommander-${{ github.ref_name }}-win-x64.zip
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: NorthCommander-${{ github.ref_name }}-win-x64.zip
+          generate_release_notes: true

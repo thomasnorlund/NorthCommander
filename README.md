@@ -36,6 +36,10 @@ dotnet test
 | `Shift+F10` / Menu key | Context menu of the item under the cursor |
 | `Ctrl+M` | Multi-rename marked items (or the item under the cursor) with TC masks and live preview |
 | `Ctrl+Shift+S` | Synchronize directories of the left and right panel (compare, then queue copies) |
+| `F4` | Edit file (Notepad on Windows, default app elsewhere) |
+| `F7` | Create folder (`a/b` creates nested folders) |
+| `F10` / `Alt+X` | Quit |
+| typing + `Enter` | Command line: runs in the active panel's folder via `cmd.exe /c` (`/bin/sh -c` on Linux/macOS); `cd` changes the panel folder; output opens in the Lister; `Esc` clears |
 | `Ctrl+T` | New folder tab in the active panel (same folder) |
 | `Ctrl+W` | Close the current tab (the last tab of a panel stays open); middle-click also closes |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab of the active panel |
@@ -100,3 +104,16 @@ NorthCommander.sln
 ## License
 
 [MIT](LICENSE)
+
+## Releases
+
+Pushing a tag such as `v1.0.0` runs `.github/workflows/release.yml` on Windows: it tests, publishes a
+self-contained single-file `NorthCommander.exe` (win-x64, ReadyToRun, no .NET install needed), zips it
+with README/LICENSE and attaches `NorthCommander-v1.0.0-win-x64.zip` to a GitHub release.
+
+Local equivalent:
+
+```sh
+dotnet publish src/NorthCommander.UI -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -p:DebugType=None -o publish
+```

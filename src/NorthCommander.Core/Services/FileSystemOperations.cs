@@ -59,6 +59,29 @@ public static class FileSystemOperations
         return target;
     }
 
+    /// <summary>Creates <paramref name="name"/> (may contain subfolders, e.g. <c>a/b</c>) inside <paramref name="parent"/>.</summary>
+    /// <exception cref="ArgumentException">The name is empty, invalid or leaves <paramref name="parent"/>.</exception>
+    /// <exception cref="IOException">The folder already exists.</exception>
+    public static string CreateDirectory(string parent, string name)
+    {
+        name = name.Trim();
+        var segments = name.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0 || Path.IsPathRooted(name)
+            || segments.Any(s => s is "." or ".." || s.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
+        {
+            throw new ArgumentException($"'{name}' is not a valid folder name.", nameof(name));
+        }
+
+        var path = Path.Combine([parent, .. segments]);
+        if (Path.Exists(path))
+        {
+            throw new IOException($"'{name}' already exists.");
+        }
+
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
     private static void MoveEntry(string source, string destination)
     {
         if (Directory.Exists(source))

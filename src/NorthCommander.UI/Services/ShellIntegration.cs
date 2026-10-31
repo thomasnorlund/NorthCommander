@@ -22,6 +22,15 @@ internal static class ShellIntegration
         }
     }
 
+    /// <summary>F4: opens a file in Notepad (Windows) or the desktop's default application.</summary>
+    public static void Edit(string path)
+    {
+        var info = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("notepad.exe") { ArgumentList = { path }, UseShellExecute = false }
+            : new ProcessStartInfo(path) { UseShellExecute = true };
+        Process.Start(info)?.Dispose();
+    }
+
     /// <summary>Shows the Windows shell "Properties" dialog of a file or folder.</summary>
     public static void ShowProperties(string path)
     {

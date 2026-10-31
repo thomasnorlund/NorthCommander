@@ -1,6 +1,7 @@
 using NorthCommander.Core.Archives;
 using NorthCommander.Core.Services;
 using NorthCommander.Core.Sync;
+using NorthCommander.UI.Services;
 using NorthCommander.Core.Transfers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -147,6 +148,124 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 tab.ClearMarks();
                 _ = RefreshTabsShowingAsync(folders);
+            }
+        });
+    }
+
+    /// <summary>Raised by F10 / Alt+X; the window closes itself.</summary>
+    public event EventHandler? QuitRequested;
+
+    /// <summary>Text of the NC-style command line above the F-key bar.</summary>
+    [ObservableProperty]
+    public partial string CommandText { get; set; } = string.Empty;
+
+    [RelayCommand]
+    private void Quit()
+    {
+        if (!IsModalOpen)
+        {
+            QuitRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Runs the command line in the active panel's folder; <c>cd</c> changes the panel's folder.</summary>
+    [RelayCommand]
+    private async Task ExecuteCommandLineAsync()
+    {
+        var command = CommandText.Trim();
+        var tab = ActivePanel.SelectedTab;
+        if (command.Length == 0 || IsModalOpen || RejectInArchive(tab, "Running commands"))
+        {
+            return;
+        }
+
+        CommandText = string.Empty;
+        if (CommandRunner.TryParseChangeDirectory(command, tab.CurrentPath, out var target))
+        {
+            await tab.LoadAsync(target);
+            return;
+        }
+
+        var folder = tab.CurrentPath;
+        var output = Path.Combine(Directory.CreateTempSubdirectory("NorthCommander_").FullName, "output.txt");
+        int exitCode;
+        try
+        {
+            tab.ErrorMessage = null;
+            exitCode = await CommandRunner.RunAsync(command, folder, output);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            ZipArchiveService.DeleteTemporaryFile(output);
+            tab.ErrorMessage = $"Cannot run '{command}': {ex.Message}";
+            return;
+        }
+
+        await RefreshTabsShowingAsync([folder]);
+        if (new FileInfo(output).Length == 0)
+        {
+            ZipArchiveService.DeleteTemporaryFile(output);
+            if (exitCode != 0)
+            {
+                tab.ErrorMessage = $"'{command}' exited with code {exitCode}.";
+            }
+
+            return;
+        }
+
+        // Console output is shown in the Lister; the temp file is deleted when it closes.
+        File.AppendAllText(output, $"{Environment.NewLine}[{folder}> {command}  -  exit code {exitCode}]{Environment.NewLine}");
+        if (!IsModalOpen && Lister.Open(output, $"{folder}> {command}", deleteOnClose: true) is { } error)
+        {
+            tab.ErrorMessage = error;
+        }
+        else if (IsModalOpen)
+        {
+            ZipArchiveService.DeleteTemporaryFile(output);
+        }
+    }
+
+    [RelayCommand]
+    private void Edit()
+    {
+        if (IsModalOpen || ActivePanel.SelectedTab is not { SelectedItem: { IsDirectory: false, IsParentLink: false } item } tab || RejectInArchive(tab, "Editing"))
+        {
+            return;
+        }
+
+        try
+        {
+            ShellIntegration.Edit(item.FullPath);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            tab.ErrorMessage = $"Cannot edit '{Path.GetFileName(item.FullPath)}': {ex.Message}";
+        }
+    }
+
+    /// <summary>F7: asks for a folder name (a/b creates nested folders) and selects the new folder.</summary>
+    [RelayCommand]
+    private void MakeDirectory()
+    {
+        var tab = ActivePanel.SelectedTab;
+        if (IsModalOpen || RejectInArchive(tab, "Creating folders"))
+        {
+            return;
+        }
+
+        PromptDialog.Open("Create directory (F7)", $"Create new folder in {tab.CurrentPath}:", string.Empty, "Create", isDanger: false, name =>
+        {
+            try
+            {
+                var created = FileSystemOperations.CreateDirectory(tab.CurrentPath, name);
+                var first = Path.Combine(tab.CurrentPath, Path.GetRelativePath(tab.CurrentPath, created).Split(Path.DirectorySeparatorChar)[0]);
+                _ = tab.LoadAsync(tab.CurrentPath, pathToSelect: first);
+                _ = RefreshTabsShowingAsync([tab.CurrentPath], except: tab);
+                return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return ex.Message;
             }
         });
     }

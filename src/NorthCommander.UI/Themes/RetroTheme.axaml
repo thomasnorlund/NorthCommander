@@ -175,8 +175,67 @@
 
     <!-- Key hint bar -->
     <Style Selector="Border#KeyBar TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource KeyBarForegroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
         <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+    </Style>
+    <Style Selector="Border#KeyBar Button.fkey">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,1,4,1" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border#KeyBar Button.fkey /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border#KeyBar Button.fkey:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#333333" />
+    </Style>
+    <Style Selector="Border#KeyBar TextBlock.fkeyNumber">
+        <Setter Property="Margin" Value="2,0,3,0" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Border#KeyBar Border.fkeyLabel">
+        <Setter Property="Background" Value="{StaticResource CursorBrush}" />
+        <Setter Property="Padding" Value="4,1" />
+    </Style>
+    <Style Selector="Border#KeyBar Border.fkeyLabel TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource CursorForegroundBrush}" />
+    </Style>
+    <Style Selector="Border#KeyBar Button.fkey:pointerover Border.fkeyLabel">
+        <Setter Property="Background" Value="{StaticResource ActivePanelBrush}" />
+    </Style>
+    <Style Selector="Border#KeyBar Button.fkey:disabled Border.fkeyLabel">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <!-- Command line -->
+    <Style Selector="Border#CommandLineBar">
+        <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
+        <Setter Property="Padding" Value="6,1" />
+    </Style>
+    <Style Selector="Border#CommandLineBar TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.commandLine">
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+        <Setter Property="CaretBrush" Value="{StaticResource PanelForegroundBrush}" />
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="2,1" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.commandLine /template/ Border#PART_BorderElement, TextBox.commandLine:pointerover /template/ Border#PART_BorderElement, TextBox.commandLine:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.commandLine:focus, TextBox.commandLine:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
     </Style>
 
     <!-- Lister (F3 viewer) -->

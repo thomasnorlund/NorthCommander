@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 
         // Tunnel so Tab is intercepted before Avalonia's focus navigation consumes it.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -29,7 +30,9 @@ public partial class MainWindow : Window
         _viewModel?.Lister.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.MultiRename.PropertyChanged -= OnDialogPropertyChanged;
         _viewModel?.SyncDirectories.PropertyChanged -= OnDialogPropertyChanged;
+        _viewModel?.QuitRequested -= OnQuitRequested;
         _viewModel = DataContext as MainWindowViewModel;
+        _viewModel?.QuitRequested += OnQuitRequested;
         _viewModel?.SyncDirectories.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.MultiRename.PropertyChanged += OnDialogPropertyChanged;
         _viewModel?.Lister.PropertyChanged += OnDialogPropertyChanged;
@@ -55,7 +58,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None && !string.IsNullOrWhiteSpace(_viewModel.CommandText))
+        {
+            // Typed command wins over "open the selected item".
+            _viewModel.ExecuteCommandLineCommand.Execute(null);
+            ActivePanelView.FocusSelectedItem();
+            e.Handled = true;
+        }
+        else if (e.Key is Key.Escape or Key.Enter && CommandBox.IsFocused)
+        {
+            _viewModel.CommandText = string.Empty;
+            ActivePanelView.FocusSelectedItem();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             var command = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? _viewModel.PreviousTabCommand : _viewModel.NextTabCommand;
             command.Execute(null);
@@ -67,6 +83,23 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
     }
+
+    /// <summary>Like NC, typing anywhere in the panels goes to the command line.</summary>
+    private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (_viewModel is null || _viewModel.IsModalOpen || e.Source is TextBox || string.IsNullOrEmpty(e.Text)
+            || char.IsControl(e.Text[0]) || (e.Text == " " && _viewModel.CommandText.Length == 0))
+        {
+            return;
+        }
+
+        _viewModel.CommandText += e.Text;
+        e.Handled = true;
+        CommandBox.Focus();
+        CommandBox.CaretIndex = _viewModel.CommandText.Length;
+    }
+
+    private void OnQuitRequested(object? sender, EventArgs e) => Close();
 
     private void OnDialogPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

@@ -17,6 +17,10 @@
         <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding OpenSyncDirectoriesCommand}" />
         <KeyBinding Gesture="Ctrl+M" Command="{Binding MultiRenameFilesCommand}" />
         <KeyBinding Gesture="F3" Command="{Binding ViewCommand}" />
+        <KeyBinding Gesture="F4" Command="{Binding EditCommand}" />
+        <KeyBinding Gesture="F7" Command="{Binding MakeDirectoryCommand}" />
+        <KeyBinding Gesture="F10" Command="{Binding QuitCommand}" />
+        <KeyBinding Gesture="Alt+X" Command="{Binding QuitCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding CopyCommand}" />
         <KeyBinding Gesture="F6" Command="{Binding MoveCommand}" />
         <KeyBinding Gesture="Shift+F6" Command="{Binding RenameCommand}" />
@@ -29,31 +33,65 @@
 
     <Panel>
         <DockPanel IsEnabled="{Binding !IsModalOpen}">
-            <!-- Key hint bar (Total Commander style) -->
-            <Border x:Name="KeyBar" DockPanel.Dock="Bottom" Padding="8,4">
-                <StackPanel Orientation="Horizontal" Spacing="24">
-                    <StackPanel.Styles>
-                        <Style Selector="TextBlock">
-                            <Setter Property="FontSize" Value="12" />
-                            <Setter Property="Opacity" Value="0.9" />
-                        </Style>
-                    </StackPanel.Styles>
-                    <TextBlock Text="Tab  Switch panel" />
-                    <TextBlock Text="↑ ↓ PgUp PgDn Home End  Navigate" />
-                    <TextBlock Text="Enter  Open" />
-                    <TextBlock Text="Ins/Space  Select" />
-                    <TextBlock Text="Backspace  Parent folder" />
-                    <TextBlock Text="F3  View" />
-                    <TextBlock Text="F5  Copy" />
-                    <TextBlock Text="F6  Move" />
-                    <TextBlock Text="Shift+F6  Rename" />
-                    <TextBlock Text="F8  Delete" />
-                    <TextBlock Text="Ctrl+M  Multi-rename" />
-                    <TextBlock Text="Ctrl+Shift+S  Sync dirs" />
-                    <TextBlock Text="Ctrl+R  Refresh" />
-                    <TextBlock Text="Ctrl+T/W  New/close tab" />
-                    <TextBlock Text="Ctrl+Tab  Next tab" />
-                </StackPanel>
+            <!-- Norton Commander F-key bar (clickable) -->
+            <Border x:Name="KeyBar" DockPanel.Dock="Bottom">
+                <UniformGrid Rows="1" Columns="7">
+                    <Button Classes="fkey" Command="{Binding ViewCommand}" ToolTip.Tip="F3 Lister">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F3" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Lister" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding EditCommand}" ToolTip.Tip="F4 Edit">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F4" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Edit" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding CopyCommand}" ToolTip.Tip="F5 Copy">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F5" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Copy" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding MoveCommand}" ToolTip.Tip="F6 Move">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F6" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Move" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding MakeDirectoryCommand}" ToolTip.Tip="F7 MkDir">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F7" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="MkDir" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding DeleteCommand}" ToolTip.Tip="F8 Delete">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F8" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Delete" /></Border>
+                        </Grid>
+                    </Button>
+                    <Button Classes="fkey" Command="{Binding QuitCommand}" ToolTip.Tip="F10 Quit">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Classes="fkeyNumber" Text="F10" />
+                            <Border Grid.Column="1" Classes="fkeyLabel"><TextBlock Text="Quit" /></Border>
+                        </Grid>
+                    </Button>
+                </UniformGrid>
+            </Border>
+
+            <!-- Command line: runs in the active panel's folder -->
+            <Border x:Name="CommandLineBar" DockPanel.Dock="Bottom">
+                <DockPanel>
+                    <TextBlock x:Name="CommandPrompt"
+                               DockPanel.Dock="Left"
+                               MaxWidth="480"
+                               TextTrimming="PrefixCharacterEllipsis"
+                               Text="{Binding ActivePanel.SelectedTab.CurrentPath, StringFormat='{}{0}&gt;'}" />
+                    <TextBlock DockPanel.Dock="Right" Text="running…" IsVisible="{Binding ExecuteCommandLineCommand.IsRunning}" />
+                    <TextBox x:Name="CommandBox" Classes="commandLine" Text="{Binding CommandText}" />
+                </DockPanel>
             </Border>
 
             <Grid ColumnDefinitions="*,6,*" Margin="4">
