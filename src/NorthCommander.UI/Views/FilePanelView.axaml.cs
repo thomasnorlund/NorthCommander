@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NorthCommander.Core.Transfers;
@@ -20,12 +21,14 @@ public partial class FilePanelView : UserControl
     private FilePanelViewModel? _viewModel;
     private TabViewModel? _tab;
 
-    // Left button: drag & drop to the other panel (or onto a folder).
+    // Drags started by NorthCommander carry their source tab; drags from other apps only carry files.
+    private static readonly DataFormat<PanelDrag> PanelDragFormat = DataFormat.CreateInProcessFormat<PanelDrag>("NorthCommander.PanelDrag");
+    private static PanelDrag? s_activeDrag;
+
+    // Left button: drag & drop to the other panel, onto a folder, or to Explorer and other apps.
     private FileItemViewModel? _dragItem;
-    private IReadOnlyList<string> _dragSources = [];
+    private PointerPressedEventArgs? _dragPress;
     private Point _dragStart;
-    private bool _isDragging;
-    private FilePanelView? _dropTarget;
 
     // Right button: drag marks a range (Total Commander), a short click opens the context menu.
     private FileItemViewModel? _rightItem;
@@ -49,7 +52,15 @@ public partial class FilePanelView : UserControl
         FileList.AddHandler(PointerMovedEvent, OnListPointerMoved, RoutingStrategies.Tunnel);
         FileList.AddHandler(PointerReleasedEvent, OnListPointerReleased, RoutingStrategies.Tunnel);
         FileList.AddHandler(PointerCaptureLostEvent, (_, _) => ResetPointerState(), RoutingStrategies.Direct);
+
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragEnterEvent, OnDragOver);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DragLeaveEvent, (_, _) => SetDropHighlight(false));
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
+
+    private sealed record PanelDrag(TabViewModel SourceTab, IReadOnlyList<string> Sources);
 
     private MainWindowViewModel? MainViewModel => TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
 
@@ -206,6 +217,7 @@ public partial class FilePanelView : UserControl
         else if (properties.IsLeftButtonPressed && e.ClickCount == 1 && !item.IsParentLink)
         {
             _dragItem = item;
+            _dragPress = e;
             _dragStart = e.GetPosition(FileList);
         }
     }
@@ -228,37 +240,154 @@ public partial class FilePanelView : UserControl
             return;
         }
 
-        if (!_isDragging)
+        var position = e.GetPosition(FileList);
+        if (!e.GetCurrentPoint(FileList).Properties.IsLeftButtonPressed)
         {
-            var position = e.GetPosition(FileList);
-            if (!e.GetCurrentPoint(FileList).Properties.IsLeftButtonPressed)
-            {
-                ResetPointerState();
-                return;
-            }
-
-            if (Math.Abs(position.X - _dragStart.X) < DragThreshold && Math.Abs(position.Y - _dragStart.Y) < DragThreshold)
-            {
-                return;
-            }
-
-            _dragSources = _viewModel.SelectedTab.GetContextPaths(_dragItem);
-            if (_dragSources.Count == 0)
-            {
-                ResetPointerState();
-                return;
-            }
-
-            _isDragging = true;
-            e.Pointer.Capture(FileList);
+            ResetPointerState();
+            return;
         }
 
-        var (view, target) = FindDropTarget(e);
-        SetDropTarget(target is null ? null : view);
-        SetCursor(target is null
-            ? StandardCursorType.No
-            : e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? StandardCursorType.DragMove : StandardCursorType.DragCopy);
+        if (Math.Abs(position.X - _dragStart.X) < DragThreshold && Math.Abs(position.Y - _dragStart.Y) < DragThreshold)
+        {
+            return;
+        }
+
+        var tab = _viewModel.SelectedTab;
+        var sources = tab.GetContextPaths(_dragItem);
+        var press = _dragPress;
+        ResetPointerState();
+        if (sources.Count > 0 && press is not null)
+        {
+            _ = StartDragAsync(press, tab, sources);
+        }
     }
+
+    private async Task StartDragAsync(PointerPressedEventArgs press, TabViewModel tab, IReadOnlyList<string> sources)
+    {
+        var drag = new PanelDrag(tab, sources);
+        var first = new DataTransferItem();
+        first.Set(PanelDragFormat, drag);
+        var data = new DataTransfer();
+        data.Add(first);
+
+        // Real files also go out as platform file items (CF_HDROP on Windows), so Explorer and other apps accept them.
+        // Entries inside a ZIP have no file on disk; they can only be dropped onto NorthCommander panels.
+        if (!tab.IsInArchive && TopLevel.GetTopLevel(this)?.StorageProvider is { } storage)
+        {
+            var hasFile = false;
+            foreach (var path in sources)
+            {
+                IStorageItem? file = Directory.Exists(path)
+                    ? await storage.TryGetFolderFromPathAsync(path)
+                    : await storage.TryGetFileFromPathAsync(path);
+                if (file is null)
+                {
+                    continue;
+                }
+
+                if (hasFile)
+                {
+                    data.Add(DataTransferItem.CreateFile(file));
+                }
+                else
+                {
+                    first.SetFile(file);
+                    hasFile = true;
+                }
+            }
+        }
+
+        s_activeDrag = drag;
+        try
+        {
+            var effect = await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Copy | DragDropEffects.Move);
+
+            // Our own panels always report Copy; Move means another app (e.g. Explorer) moved the files away.
+            if (effect.HasFlag(DragDropEffects.Move))
+            {
+                await tab.RefreshAsync();
+            }
+        }
+        finally
+        {
+            s_activeDrag = null;
+        }
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        var drop = ResolveDrop(e);
+        SetDropHighlight(drop is not null);
+        e.DragEffects = drop is null
+            ? DragDropEffects.None
+            : e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? DragDropEffects.Move : DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        SetDropHighlight(false);
+        e.Handled = true;
+        if (ResolveDrop(e) is not { } drop || MainViewModel is not { } main)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        var type = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? FileTransferType.Move : FileTransferType.Copy;
+
+        // Always report Copy: a Move result would let the source app (e.g. Explorer) delete the originals
+        // before NorthCommander's queued, confirmable move has run. The queue does the move itself.
+        e.DragEffects = DragDropEffects.Copy;
+        main.ShowTransferDialog(drop.SourceTab, type, drop.Sources, drop.Target);
+        if (_viewModel is { } panel)
+        {
+            main.ActivePanel = panel;
+        }
+
+        Dispatcher.UIThread.Post(() => (TopLevel.GetTopLevel(this) as Window)?.Activate());
+    }
+
+    /// <summary>
+    /// Sources and target folder of a drop on this panel: a folder row under the pointer (not one of the dragged items),
+    /// otherwise the panel's current folder. Null when the drop makes no sense (no files, or into the folder they come from).
+    /// </summary>
+    private (TabViewModel? SourceTab, IReadOnlyList<string> Sources, string Target)? ResolveDrop(DragEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return null;
+        }
+
+        var drag = e.DataTransfer.TryGetValue(PanelDragFormat) ?? s_activeDrag;
+        var sources = drag?.Sources
+            ?? e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToList()
+            ?? [];
+        if (sources.Count == 0)
+        {
+            return null;
+        }
+
+        var tab = _viewModel.SelectedTab;
+        var target = ItemAt(e.GetPosition(FileList)) is { IsDirectory: true, IsParentLink: false } folder && !sources.Contains(folder.FullPath)
+            ? folder.FullPath
+            : tab.CurrentPath;
+        if (sources.All(s => PathsEqual(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(s)), target)))
+        {
+            return null;
+        }
+
+        return (drag?.SourceTab, sources, target);
+    }
+
+    private static bool PathsEqual(string? first, string second) =>
+        first is not null
+        && string.Equals(
+            Path.TrimEndingDirectorySeparator(first),
+            Path.TrimEndingDirectorySeparator(second),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+    private void SetDropHighlight(bool isTarget) => PanelFrame.Classes.Set("dropTarget", isTarget);
 
     private void OnListPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
@@ -276,22 +405,6 @@ public partial class FilePanelView : UserControl
             if (!wasMarking)
             {
                 ShowContextMenu(rightItem);
-            }
-
-            return;
-        }
-
-        if (_isDragging && e.InitialPressMouseButton == MouseButton.Left)
-        {
-            var (_, target) = FindDropTarget(e);
-            var sources = _dragSources;
-            var type = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? FileTransferType.Move : FileTransferType.Copy;
-            e.Handled = true;
-            e.Pointer.Capture(null);
-            ResetPointerState();
-            if (target is not null)
-            {
-                MainViewModel?.ShowTransferDialog(_viewModel.SelectedTab, type, sources, target);
             }
 
             return;
@@ -331,60 +444,13 @@ public partial class FilePanelView : UserControl
         tab.SelectedItem = item;
     }
 
-    /// <summary>
-    /// Drop target under the pointer: a folder row (not one of the dragged items) or the other panel's current folder.
-    /// </summary>
-    private (FilePanelView? View, string? TargetPath) FindDropTarget(PointerEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel
-            || topLevel.InputHitTest(e.GetPosition(topLevel)) is not Visual hit
-            || hit.FindAncestorOfType<FilePanelView>(includeSelf: true) is not { _viewModel: { } panel } view)
-        {
-            return (null, null);
-        }
-
-        if (hit.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext is FileItemViewModel { IsDirectory: true, IsParentLink: false } folder
-            && !_dragSources.Contains(folder.FullPath))
-        {
-            return (view, folder.FullPath);
-        }
-
-        return ReferenceEquals(view, this) ? (null, null) : (view, panel.SelectedTab.CurrentPath);
-    }
-
-    private void SetDropTarget(FilePanelView? view)
-    {
-        if (ReferenceEquals(_dropTarget, view))
-        {
-            return;
-        }
-
-        _dropTarget?.PanelFrame.Classes.Set("dropTarget", false);
-        _dropTarget = view;
-        _dropTarget?.PanelFrame.Classes.Set("dropTarget", true);
-    }
-
-    private void SetCursor(StandardCursorType? type)
-    {
-        if (TopLevel.GetTopLevel(this) is { } topLevel)
-        {
-            topLevel.Cursor = type is { } cursor ? new Cursor(cursor) : null;
-        }
-    }
-
     private void ResetPointerState()
     {
         _rightItem = null;
         _isRightMarking = false;
         _rightLastIndex = -1;
         _dragItem = null;
-        _dragSources = [];
-        if (_isDragging)
-        {
-            _isDragging = false;
-            SetDropTarget(null);
-            SetCursor(null);
-        }
+        _dragPress = null;
     }
 
     private void ShowContextMenu(FileItemViewModel item)

@@ -382,7 +382,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         (ReferenceEquals(panel, LeftPanel) ? RightPanel : LeftPanel).SelectedTab.CurrentPath;
 
     /// <summary>Opens the F5/F6 confirmation for <paramref name="sources"/> (keyboard, context menu, drag &amp; drop).</summary>
-    public void ShowTransferDialog(TabViewModel sourceTab, FileTransferType type, IReadOnlyList<string> sources, string target)
+    /// <param name="sourceTab">Tab the sources come from; null for files dropped from another application.</param>
+    public void ShowTransferDialog(TabViewModel? sourceTab, FileTransferType type, IReadOnlyList<string> sources, string target)
     {
         if (IsModalOpen || sources.Count == 0)
         {
@@ -461,12 +462,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void OpenTransferDialog(FileTransferType type) =>
         ShowTransferDialog(ActivePanel.SelectedTab, type, ActivePanel.SelectedTab.GetSelectedPaths(), InactivePanel.SelectedTab.CurrentPath);
 
-    private string? EnqueueTransfers(TabViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target)
+    private string? EnqueueTransfers(TabViewModel? panel, FileTransferType type, IReadOnlyList<string> sources, string target)
     {
         try
         {
             var targetInArchive = ZipArchiveService.TryParse(target, out var targetArchive, out _);
-            if (panel.IsInArchive || targetInArchive)
+            if (panel is { IsInArchive: true } || targetInArchive)
             {
                 return EnqueueArchiveTransfers(panel, type, sources, target, targetInArchive ? targetArchive : null);
             }
@@ -490,7 +491,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 Transfers.Enqueue(new FileTransferTask(type, source, destination, batch));
             }
 
-            panel.ClearMarks();
+            panel?.ClearMarks();
             return null;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
@@ -500,9 +501,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>F5 out of a ZIP extracts, F5 into a ZIP packs; both run in the background queue.</summary>
-    private string? EnqueueArchiveTransfers(TabViewModel panel, FileTransferType type, IReadOnlyList<string> sources, string target, string? targetArchive)
+    private string? EnqueueArchiveTransfers(TabViewModel? panel, FileTransferType type, IReadOnlyList<string> sources, string target, string? targetArchive)
     {
-        if (panel.IsInArchive && targetArchive is not null)
+        var sourceInArchive = panel is { IsInArchive: true };
+        if (sourceInArchive && targetArchive is not null)
         {
             return "Copying from one ZIP archive into another is not supported yet.";
         }
@@ -526,7 +528,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
         }
 
-        var operation = panel.IsInArchive ? FileTransferType.Extract : FileTransferType.Pack;
+        var operation = sourceInArchive ? FileTransferType.Extract : FileTransferType.Pack;
         var batch = new FileTransferBatch();
         foreach (var source in sources)
         {
@@ -534,7 +536,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             Transfers.Enqueue(new FileTransferTask(operation, source, destination, batch));
         }
 
-        panel.ClearMarks();
+        panel?.ClearMarks();
         return null;
     }
 

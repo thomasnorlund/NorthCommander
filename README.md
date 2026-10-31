@@ -75,6 +75,10 @@ NorthCommander.sln
   a short right-click opens the context menu (Open, Copy, Move, Rename, Delete, Copy full path,
   Show in Explorer, Properties on Windows). Left-drag items onto the other panel (or onto a folder) to open
   the Copy dialog; hold `Shift` while dropping for Move.
+- Drag and drop with Explorer and other apps: files dropped from Explorer or the Desktop onto a panel (or a
+  folder row, or an open ZIP) open the same Copy dialog (`Shift` for Move); NorthCommander does the copy or
+  move itself in the background queue. Dragging items out of a panel hands them to the target app as normal
+  files (e.g. Explorer copies them). Entries inside a ZIP can only be dropped onto NorthCommander panels.
 - Lister (F3): files are read through a memory-mapped sliding window (`MappedFileSource`), and only the
   visible page is decoded (`TextPager` for UTF-8 text with wrapping, `HexFormatter` for
   `Offset | Hex | ASCII` rows), so multi-gigabyte files open instantly with constant memory.
