@@ -38,6 +38,10 @@ public sealed partial class TabViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
+    /// <summary>Kind of the drive this tab is on (icon on the tab); null until drives are known.</summary>
+    [ObservableProperty]
+    public partial DriveKind? DriveIcon { get; set; }
+
     /// <summary>True while the tab shows a folder inside an archive.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayPath))]
@@ -59,7 +63,8 @@ public sealed partial class TabViewModel : ViewModelBase
             var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(CurrentPath));
             if (string.IsNullOrEmpty(name))
             {
-                name = CurrentPath;
+                // Drive roots read "c:" like in the Legendary File Commander applications.
+                name = OperatingSystem.IsWindows() ? Path.TrimEndingDirectorySeparator(CurrentPath).ToLowerInvariant() : CurrentPath;
             }
 
             return IsLocked ? $"*{name}" : name;
@@ -346,7 +351,7 @@ public sealed partial class TabViewModel : ViewModelBase
     [RelayCommand]
     private void Close() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
-    private Task NavigateAsync(string path, string? pathToSelect = null)
+    public Task NavigateAsync(string path, string? pathToSelect = null)
     {
         if (IsLocked && !IsShowingDirectory(path))
         {
@@ -466,7 +471,7 @@ public sealed partial class TabViewModel : ViewModelBase
         }
     }
 
-    private static string FormatSize(long bytes)
+    internal static string FormatSize(long bytes)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         double size = bytes;

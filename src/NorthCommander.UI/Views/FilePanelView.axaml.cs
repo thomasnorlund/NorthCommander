@@ -47,6 +47,9 @@ public partial class FilePanelView : UserControl
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         TabStrip.AddHandler(PointerPressedEvent, OnTabStripPointerPressed);
 
+        DriveCombo.DropDownOpened += (_, _) => _ = _viewModel?.RefreshDrivesAsync();
+        DriveCombo.DropDownClosed += (_, _) => FocusSelectedItem();
+
         FileList.DoubleTapped += OnFileListDoubleTapped;
         FileList.AddHandler(PointerPressedEvent, OnListPointerPressed, RoutingStrategies.Tunnel);
         FileList.AddHandler(PointerMovedEvent, OnListPointerMoved, RoutingStrategies.Tunnel);
@@ -125,6 +128,14 @@ public partial class FilePanelView : UserControl
         {
             FocusSelectedItem();
         }
+    }
+
+    /// <summary>Alt+F1 / Alt+F2: opens the drive dropdown of this panel.</summary>
+    public void OpenDriveList()
+    {
+        _viewModel?.RequestActivation();
+        DriveCombo.Focus(NavigationMethod.Tab);
+        DriveCombo.IsDropDownOpen = true;
     }
 
     public void FocusSelectedItem()

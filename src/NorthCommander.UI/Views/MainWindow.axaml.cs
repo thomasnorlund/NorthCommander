@@ -107,6 +107,11 @@ public partial class MainWindow : Window
             ActivePanelView.FocusSelectedItem();
             e.Handled = true;
         }
+        else if (e.Key is Key.F1 or Key.F2 && e.KeyModifiers == KeyModifiers.Alt)
+        {
+            (e.Key == Key.F1 ? LeftPanelView : RightPanelView).OpenDriveList();
+            e.Handled = true;
+        }
         else if (e.Key == Key.Tab && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             var command = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? _viewModel.PreviousTabCommand : _viewModel.NextTabCommand;
@@ -123,7 +128,7 @@ public partial class MainWindow : Window
     /// <summary>Like NC, typing anywhere in the panels goes to the command line.</summary>
     private void OnPreviewTextInput(object? sender, TextInputEventArgs e)
     {
-        if (_viewModel is null || _viewModel.IsModalOpen || e.Source is TextBox || string.IsNullOrEmpty(e.Text)
+        if (_viewModel is null || _viewModel.IsModalOpen || e.Source is TextBox or ComboBox or ComboBoxItem || string.IsNullOrEmpty(e.Text)
             || char.IsControl(e.Text[0]) || (e.Text == " " && _viewModel.CommandText.Length == 0))
         {
             return;

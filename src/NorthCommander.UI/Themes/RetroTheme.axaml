@@ -52,6 +52,44 @@
         <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
     </Style>
 
+    <!-- Drive dropdown -->
+    <Style Selector="Border#DriveBar">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+    </Style>
+    <Style Selector="ComboBox.drive">
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="Padding" Value="6,0,4,0" />
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Background" Value="{StaticResource DialogBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InactivePanelBrush}" />
+    </Style>
+    <Style Selector="Border#PanelFrame.active ComboBox.drive">
+        <Setter Property="BorderBrush" Value="{StaticResource ActivePanelBrush}" />
+    </Style>
+    <Style Selector="Button.driveBar">
+        <Setter Property="Height" Value="24" />
+        <Setter Property="MinWidth" Value="26" />
+        <Setter Property="Padding" Value="6,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource PanelForegroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource DialogBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InactivePanelBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Focusable" Value="False" />
+    </Style>
+    <Style Selector="StackPanel.driveItem TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource RetroFontFamily}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="StackPanel.driveItem.notReady">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
     <!-- Path header -->
     <Style Selector="Border#PathHeader">
         <Setter Property="Background" Value="{StaticResource InactivePanelBrush}" />

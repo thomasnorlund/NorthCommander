@@ -26,6 +26,7 @@ dotnet test
 | `↑` `↓` `PgUp` `PgDn` `Home` `End` | Move selection |
 | `Enter` / double-click | Open folder (or launch file with its default app) |
 | `Backspace` | Go to parent folder |
+| `Alt+F1` / `Alt+F2` | Drive dropdown of the left / right panel: type the drive letter, `Enter` switches. Returns to the folder last used on that drive in this panel; `*` is My Documents. The `\` and `..` buttons next to it go to the drive root / parent folder |
 | `Ctrl+R` | Refresh panel |
 | `Insert` / `Space` | Select (mark) the item under the cursor and move down; marked items are shown in red. `Space` on a folder also calculates its size |
 | `F3` | Lister: view the file under the cursor (`1` Text, `2` Hex, `3` Image, `W` wrap, `Esc` close); on a folder, calculate its size |

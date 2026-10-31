@@ -56,6 +56,10 @@ models call Core.
   folder view: path, listing, cursor, marked items, history and lock state. Views bind to
   `SelectedTab.*`.
 - A locked tab never leaves its folder; navigating away opens a new tab instead.
+- The drive bar on top of each panel (drive dropdown, `[label] free of total`, `\` and `..`)
+  binds to `FilePanelViewModel.Drives`. `DriveService` (Core) lists drives (real mount points on
+  Linux) off the UI thread, and the panel remembers the last folder per drive, like the
+  Legendary File Commander applications.
 
 ### 2.2 Directory listing
 
@@ -198,6 +202,7 @@ them, and reported back. The git history shows each step as one commit.
 | 15 | Folder size calculation | `Folder size calculation` |
 | 16 | Graphical setup wizard and NorthCommander-Setup.exe | `Setup wizard`, `Setup.exe` |
 | 17 | Lite variant and dependency checker (`deps.ps1`) | `Dependencies` |
+| 18 | Drive dropdown, `\` / `..` buttons, drive icons on tabs | `Drive dropdown` |
 
 ### 4.2 What worked well
 
@@ -207,7 +212,7 @@ them, and reported back. The git history shows each step as one commit.
 2. **Fix the architecture early.** The first prompt set the stack and the Core/UI split. Every later
    feature had an obvious place to live, and Core stayed testable.
 3. **Tests and a clean build as the gate.** Warnings are errors, and every step ended with
-   `dotnet build` and `dotnet test` passing (108 tests at the end). Regressions showed up
+   `dotnet build` and `dotnet test` passing (112 tests at the end). Regressions showed up
    immediately instead of three features later.
 4. **Try it like a user.** Beyond unit tests, the AI ran the app on its machine and tried each
    feature by hand (opening a 2.4 GB file, dragging between panels, renaming real files) and sent
