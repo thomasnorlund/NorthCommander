@@ -108,12 +108,13 @@ NorthCommander.sln
 ## Installation (portable)
 
 1. Unzip the release (e.g. `NorthCommander_Release.zip`) to any folder, for example `C:\Tools\NorthCommander` or a USB stick.
-2. Optional Start Menu integration (no administrator rights needed):
-   `powershell -ExecutionPolicy Bypass -File .\install.ps1` creates
-   `%APPDATA%\Microsoft\Windows\Start Menu\Programs\NorthCommander.lnk`, so typing "North" in Windows Search finds it,
-   and asks whether to add a Desktop shortcut too (`-Desktop` / `-NoDesktop` skip the question).
-   It also unblocks the downloaded files in that folder.
-3. `uninstall.ps1` deletes exactly those two shortcuts. To remove NorthCommander completely, delete its folder.
+2. Optional Windows integration (no administrator rights needed):
+   `powershell -ExecutionPolicy Bypass -File .\install.ps1`
+   - creates `NorthCommander.lnk` in `%APPDATA%\Microsoft\Windows\Start Menu\Programs` (typing "North" in Windows Search finds it) and on the Desktop (`-NoDesktop` skips it);
+   - adds the folder to the user PATH (`-NoPath` skips it), so `northcommander` or `north [folder]` (`north.cmd`) starts it from any new terminal;
+   - unblocks the downloaded files in that folder.
+   The PATH entry is the only registry change (`HKCU\Environment`, where Windows keeps the user PATH).
+3. `uninstall.ps1` removes both shortcuts and the PATH entry. To remove NorthCommander completely, delete its folder.
 
 Settings (tabs and locks, active panel, window size/position, Multi-Rename masks, Sync options) are saved to
 `NorthCommander.config.json` next to `NorthCommander.exe` when the app closes, never to AppData or the registry.

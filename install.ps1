@@ -1,32 +1,37 @@
 <#
 .SYNOPSIS
-    Adds NorthCommander to the current user's Start Menu (and optionally the Desktop).
+    Integrates portable NorthCommander into Windows for the current user.
 
 .DESCRIPTION
-    NorthCommander stays portable: nothing is copied, no registry keys are written and no
-    administrator rights are needed. The script creates shortcuts to the NorthCommander.exe
-    in the folder this script lives in. Run uninstall.ps1 to remove them again.
-
-.PARAMETER Desktop
-    Also create a Desktop shortcut without asking.
+    Uses the NorthCommander.exe in the folder this script lives in. Nothing is copied and no
+    administrator rights are needed. The script:
+      1. creates NorthCommander.lnk in the Start Menu and on the Desktop,
+      2. adds this folder to the user PATH, so "northcommander" or "north" (north.cmd)
+         starts NorthCommander from any new terminal.
+    NorthCommander itself keeps all settings in NorthCommander.config.json next to the exe.
+    The PATH entry is the only registry change (HKCU\Environment, where Windows stores the
+    user PATH). Run uninstall.ps1 to undo everything.
 
 .PARAMETER NoDesktop
-    Do not create a Desktop shortcut and do not ask.
+    Skip the Desktop shortcut.
+
+.PARAMETER NoPath
+    Do not add the folder to the user PATH.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\install.ps1
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param(
-    [switch]$Desktop,
-    [switch]$NoDesktop
+    [switch]$NoDesktop,
+    [switch]$NoPath
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
-    Write-Error 'install.ps1 creates Windows shortcuts and only runs on Windows.'
+    Write-Error 'install.ps1 integrates NorthCommander into Windows and only runs on Windows.'
     exit 1
 }
 
@@ -66,30 +71,59 @@ function New-NorthCommanderShortcut {
         [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell)
     }
 
-    Write-Output "Created $Path"
+    Write-Output "Created shortcut $Path"
+}
+
+function Test-SamePath([string]$A, [string]$B) {
+    $A.Trim().TrimEnd('\') -ieq $B.Trim().TrimEnd('\')
+}
+
+function Add-NorthCommanderToUserPath {
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
+    # Read the raw value so entries like %USERPROFILE%\bin stay unexpanded.
+    $key = Get-Item -LiteralPath 'HKCU:\Environment'
+    $current = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+    $entries = @($current -split ';' | Where-Object { $_.Trim() })
+
+    if ($entries | Where-Object { Test-SamePath ([Environment]::ExpandEnvironmentVariables($_)) $appFolder }) {
+        Write-Output "User PATH already contains $appFolder"
+    }
+    elseif ($PSCmdlet.ShouldProcess('User PATH', "Add $appFolder")) {
+        $newPath = (@($entries) + $appFolder) -join ';'
+        $kind = if ($newPath.Contains('%')) { 'ExpandString' } else { 'String' }
+        if ($kind -eq 'String') {
+            [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+        }
+        else {
+            # SetEnvironmentVariable would store REG_SZ and break %VAR% entries; keep REG_EXPAND_SZ.
+            Set-ItemProperty -LiteralPath 'HKCU:\Environment' -Name 'Path' -Value $newPath -Type ExpandString
+            # Setting and clearing a helper variable broadcasts WM_SETTINGCHANGE so new terminals see the change.
+            [Environment]::SetEnvironmentVariable('NorthCommanderInstall', '1', 'User')
+            [Environment]::SetEnvironmentVariable('NorthCommanderInstall', $null, 'User')
+        }
+        Write-Output "Added $appFolder to the user PATH"
+    }
+
+    # Make the commands work in this window too.
+    if (-not (($env:Path -split ';') | Where-Object { Test-SamePath $_ $appFolder })) {
+        $env:Path = "$env:Path;$appFolder"
+    }
 }
 
 # Files from a downloaded zip carry the "downloaded from the internet" mark; clear it for this folder only.
 Get-ChildItem -LiteralPath $appFolder -Recurse -File | Unblock-File
 
 New-NorthCommanderShortcut -Path $startMenuShortcut
-
-$createDesktop = $Desktop.IsPresent
-if (-not $Desktop -and -not $NoDesktop) {
-    try {
-        $answer = Read-Host 'Also create a Desktop shortcut? [y/N]'
-        $createDesktop = $answer -match '^(y|yes|j|ja)$'
-    }
-    catch {
-        # Non-interactive session: no Desktop shortcut unless -Desktop is given.
-        $createDesktop = $false
-    }
-}
-
-if ($createDesktop) {
+if (-not $NoDesktop) {
     New-NorthCommanderShortcut -Path $desktopShortcut
+}
+if (-not $NoPath) {
+    Add-NorthCommanderToUserPath
 }
 
 Write-Output ''
-Write-Output 'Done. Type "North" in Windows Search or the Start Menu to launch NorthCommander.'
-Write-Output 'If you move the NorthCommander folder, run install.ps1 again from the new location.'
+Write-Output 'Done. Start NorthCommander from the Start Menu ("North" in Windows Search), the Desktop,'
+Write-Output 'or by typing "north" or "northcommander" in a new terminal.'
+Write-Output 'If you move the NorthCommander folder, run uninstall.ps1 first and install.ps1 again from the new location.'
